@@ -6,7 +6,7 @@ const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Tradefly — the observation desk',
   description:
-    'An Indigo Grain desktop for tracing neural trading decisions and evaluating paper-market experiments.',
+    'Trace trading decisions, inspect paper-account balances, and compare experiment performance.',
 };
 export default function RootLayout({
   children,

@@ -7,6 +7,9 @@ import {
   metrics,
   csv,
   START_CASH,
+  outcome,
+  report,
+  decisionsCsv,
 } from '../lib/experiment.ts';
 
 void test('decoder holds on silence, ties, insufficient margin, and invalid readings', () => {
@@ -94,4 +97,69 @@ void test('metrics use the selected prefix and drawdown uses prior equity peaks'
   assert.equal(m.pnl, frames.at(-1)!.equity - START_CASH);
   assert.deepEqual(makeSession(), frames);
   assert.deepEqual(makeSession(true), makeSession(true));
+});
+
+void test('decision statuses reconcile and never resolve before their next bar', () => {
+  for (const random of [false, true]) {
+    const session = makeSession(random);
+    for (let length = 1; length <= session.length; length++) {
+      const prefix = session.slice(0, length),
+        m = metrics(prefix),
+        last = prefix.at(-1)!;
+      assert.equal(m.buyDecisions + m.sellDecisions + m.holdDecisions, length);
+      assert.equal(
+        m.buyDecisions + m.sellDecisions,
+        last.trades.length + m.blocked + m.pending,
+      );
+      assert.equal(
+        outcome(prefix, length - 1).state,
+        last.action === 'HOLD' ? 'No order' : 'Pending',
+      );
+      const states = prefix.map((f) => outcome(prefix, f.index).state);
+      assert.equal(states.filter((s) => s === 'Blocked').length, m.blocked);
+      assert.equal(
+        states.filter((s) => s === 'Filled').length,
+        last.trades.length,
+      );
+    }
+  }
+});
+void test('reported cost basis and slippage match independently reconstructed holdings and fills', () => {
+  const frames = makeSession();
+  let basis = 0,
+    shares = 0;
+  for (const trade of frames.at(-1)!.trades) {
+    assert.ok(
+      Math.abs(
+        trade.slippage -
+          Math.abs(trade.price - frames[trade.filledAt].price) * trade.quantity,
+      ) < 1e-9,
+    );
+    if (trade.action === 'BUY') {
+      basis += trade.price * trade.quantity + trade.fee;
+      shares += trade.quantity;
+    } else {
+      basis -= (basis / shares) * trade.quantity;
+      shares -= trade.quantity;
+    }
+  }
+  const last = frames.at(-1)!;
+  assert.ok(Math.abs(basis - last.costBasis) < 1e-8);
+  assert.ok(
+    Math.abs(
+      metrics(frames).unrealized -
+        (last.quantity * last.price - last.costBasis),
+    ) < 1e-8,
+  );
+});
+void test('full report and decision CSV export the entire visible interval and no future records', () => {
+  const frames = makeSession().slice(0, 19),
+    exported = report(frames);
+  assert.equal(exported.frames.length, 19);
+  assert.equal(exported.decisions.length, 19);
+  assert.equal(exported.controls.random.length, 19);
+  assert.equal(decisionsCsv(frames).split('\n').length, 20);
+  assert.ok(exported.frames.at(-1)!.trades.every((t) => t.filledAt < 19));
+  assert.equal(exported.source, 'synthetic-demo');
+  assert.equal(exported.connections.brain, false);
 });

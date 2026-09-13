@@ -1,10 +1,10 @@
-# Indigo Grain desktop
+# Tradefly desktop
 
 Implemented 2026-09-14. A browser desktop, following the windowed interaction model of the user's portfolio and Rolodex projects. It is not a native macOS application.
 
 ## Visual direction
 
-Indigo-only chrome and charts, pale indigo paper surfaces, fine procedural grain, thin rules, serif display headings, and monospaced controls. No alternate themes. The palette is an interpretation of Indigo Grain rather than a claim that the name identifies a single standardized design system.
+Photographic alpine wallpaper with baked-in indigo duotone and film grain; one separate responsive Tradefly wordmark, no trademark or visible theme label. Compact headings, monochrome charts, and inline metric definitions. Asset provenance and the generation prompt are in ASSETS.md.
 
 References inspected: portfolio desktop/wallpaper/theme source; Rolodex desktop, windows, and controls; the [Hermes site](https://hermes-agent.nousresearch.com/) for saturated monochrome color, grain, narrow typography, sharp edges, and framed interfaces; [Indigo Grain reference](https://kidspattern.com/theme/indigo-grain/swatch/1/) for deep blue-violet texture. No images or proprietary source were copied from Hermes.
 
@@ -12,15 +12,15 @@ References inspected: portfolio desktop/wallpaper/theme source; Rolodex desktop,
 
 - Observation desk: calculated paper equity, return, drawdown, trade counts, chart, latest output rates, and recent decisions.
 - Decision inspector: navigate observations, see BUY/SELL pool activity, threshold and margin checks, and whether the resulting intent filled or was blocked.
-- Trade ledger: filter buy/sell/hold decisions, inspect each decision, and export executed fills to CSV.
-- Performance lab: realized/unrealized P&L, fees, drawdown, win rate on sell fills, turnover, exposure, profit factor, and comparison portfolios. Export a JSON report.
-- Field guide: methodology, connection status, limitations, and next steps.
+- Trade ledger: filter buy/sell/hold decisions, inspect each decision, and export both decisions and executed fills to CSV.
+- Performance lab: realized/unrealized P&L, fees, drawdown, win rate on sell fills, turnover, exposure, profit factor, and comparison portfolios. Export a JSON report containing every visible frame, decision resolution, fill, parameter, and control trace.
+- Data & definitions: concise status/settings tables and a complete metric dictionary.
 
 Windows open, focus, drag, resize, maximize, minimize, close, and restore from the taskbar. Small screens use full workspace windows. The global session controller can play/pause, scrub, or restart the synthetic day. There is no actual trading pause action because no broker is connected. State is ephemeral and resets on reload.
 
 ## Data provenance and semantics
 
-`lib/experiment.ts` generates a deterministic 78-bar synthetic session. Both market observations and output-pool rates are fabricated fixtures for interface development. Rates are NOT computed from market observations by a connectome. The network drawing is a schematic, not anatomical data or a live neuron raster. All relevant windows and exported artifacts identify the synthetic source.
+`lib/experiment.ts` generates a deterministic 78-bar synthetic session. Both market observations and output-pool rates are fabricated fixtures for interface development. Rates are NOT computed from market observations by a connectome. Output-rate history plots replace the old illustrative network drawing. They plot the fixture values without implying anatomical or live neuron data. All relevant windows and exported artifacts identify the synthetic source.
 
 The demo decoder uses two constants: minimum output activity of 20 Hz and a lead of at least 8 Hz over the other pool. These are UI example parameters, not validated biological parameters. No learned external policy is involved, but no brain is running either.
 
@@ -43,3 +43,9 @@ Keep Python/Brian2 outside the hosted web process; the current Sites runtime has
 - The generated component catalog contains existing lint failures. The lint configuration excludes that unchanged vendor catalog and its generated mobile hook; application code, shared accounting, and tests are checked.
 - Structured browser tool contracts expose a read-only demo report and a demo decision navigation action. Both were verified in a supported WebMCP context, including invalid input and unchanged-state checks after failure.
 - Broad browser interaction and visual QA have not been run. The user requested reference exploration, not browser testing of the finished product.
+
+## Data-density revision
+
+Account balances and the current holding are visible in the overview. Decision inspection includes the exact activity/margin checks, account state at the time, the precise resolution reason, all fill fields, and an expandable raw record. The ledger has separate decision and fill tables. Numerical metrics include denominators, units, and click-to-open definitions. Fees and adverse slippage are itemized without subtracting either twice. Empty, blocked, pending, and unmeasured states are explicit.
+
+Additional tests check resolution counts across every replay prefix, cost basis, slippage, and full report/CSV completeness. The background overlap reported in the supplied screenshot is addressed by removing the trademark element entirely and bounding the standalone wordmark.

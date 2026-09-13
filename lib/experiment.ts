@@ -9,6 +9,7 @@ export type Trade = {
   quantity: number;
   fee: number;
   realized: number;
+  slippage: number;
 };
 export type Frame = {
   index: number;
@@ -26,6 +27,7 @@ export type Frame = {
   benchmark: number;
   fees: number;
   realized: number;
+  costBasis: number;
   status: string;
   trades: Trade[];
 };
@@ -109,6 +111,7 @@ export function makeSession(randomControl = false): Frame[] {
           quantity: q,
           fee,
           realized: pnl,
+          slippage: Math.abs(fillPrice - price) * q,
         });
         status = `Previous ${side.toLowerCase()} filled`;
       } else
@@ -130,13 +133,16 @@ export function makeSession(randomControl = false): Frame[] {
       buyHz,
       sellHz,
       action,
-      reason: explain(buyHz, sellHz),
+      reason: randomControl
+        ? 'Deterministic random control; fly decoder not used.'
+        : explain(buyHz, sellHz),
       equity: cash + quantity * price,
       cash,
       quantity,
       benchmark: 9000 + (1000 * price) / priceAt(0),
       fees,
       realized,
+      costBasis: cost,
       status,
       trades: [...trades],
     });
@@ -164,6 +170,29 @@ export function metrics(frames: Frame[]) {
       ? (closed.filter((t) => t.realized > 0).length / closed.length) * 100
       : null,
     closed: closed.length,
+    winners: closed.filter((t) => t.realized > 0).length,
+    losers: closed.filter((t) => t.realized < 0).length,
+    breakeven: closed.filter((t) => t.realized === 0).length,
+    grossProfit,
+    grossLoss,
+    meanSellPnl: closed.length ? last.realized / closed.length : null,
+    slippage: last.trades.reduce((s, t) => s + t.slippage, 0),
+    tradedNotional: last.trades.reduce((s, t) => s + t.price * t.quantity, 0),
+    buyDecisions: frames.filter((f) => f.action === 'BUY').length,
+    sellDecisions: frames.filter((f) => f.action === 'SELL').length,
+    holdDecisions: frames.filter((f) => f.action === 'HOLD').length,
+    blocked: frames.filter((f) => f.status.includes('blocked')).length,
+    pending: last.action === 'HOLD' ? 0 : 1,
+    fillRate:
+      frames.filter((f) => f.action !== 'HOLD').length -
+      (last.action === 'HOLD' ? 0 : 1)
+        ? (last.trades.length /
+            (frames.filter((f) => f.action !== 'HOLD').length -
+              (last.action === 'HOLD' ? 0 : 1))) *
+          100
+        : null,
+    positionValue: last.quantity * last.price,
+    averageCost: last.quantity > 0 ? last.costBasis / last.quantity : null,
     profitFactor: grossLoss ? grossProfit / grossLoss : null,
     turnover:
       (last.trades.reduce((s, t) => s + t.price * t.quantity, 0) / START_CASH) *
@@ -182,7 +211,7 @@ export const usd = (v: number) =>
 export const signed = (v: number) => `${v >= 0 ? '+' : '−'}${usd(Math.abs(v))}`;
 export function csv(frames: Frame[]) {
   return [
-    'source,id,decision_time,fill_time,symbol,side,quantity,fill_price,fee,realized_pnl',
+    'source,id,decision_time,fill_time,symbol,side,quantity,fill_price,fee,realized_pnl,slippage',
     ...frames
       .at(-1)!
       .trades.map((t) =>
@@ -197,7 +226,105 @@ export function csv(frames: Frame[]) {
           t.price.toFixed(4),
           t.fee.toFixed(4),
           t.realized.toFixed(4),
+          t.slippage.toFixed(4),
         ].join(','),
       ),
   ].join('\n');
+}
+
+export function outcome(frames: Frame[], index: number) {
+  const frame = frames[index];
+  if (!frame) throw new Error('Decision outside replay range');
+  const fill = frames.at(-1)!.trades.find((t) => t.decision === index);
+  if (frame.action === 'HOLD')
+    return { state: 'No order', reason: 'HOLD decision', fill: undefined };
+  if (fill)
+    return {
+      state: 'Filled',
+      reason:
+        fill.price * fill.quantity < 99.99
+          ? 'Order reduced to available holding or exposure capacity'
+          : 'Full $100 order',
+      fill,
+    };
+  if (index === frames.length - 1)
+    return {
+      state: 'Pending',
+      reason: 'Waiting for the next five-minute bar',
+      fill: undefined,
+    };
+  return {
+    state: 'Blocked',
+    reason: frames[index + 1].status
+      .replace('Previous buy blocked: ', '')
+      .replace('Previous sell blocked: ', ''),
+    fill: undefined,
+  };
+}
+export function decisionsCsv(frames: Frame[]) {
+  return [
+    'source,bar,time_et,symbol,price,change_pct,volume_shares,buy_hz,sell_hz,decision,execution,reason,equity,cash,position_shares,cost_basis',
+    ...frames.map((f) => {
+      const o = outcome(frames, f.index);
+      return [
+        'synthetic-demo',
+        f.index + 1,
+        f.time,
+        'AAPL',
+        f.price.toFixed(4),
+        f.change.toFixed(5),
+        f.volume,
+        f.buyHz,
+        f.sellHz,
+        f.action,
+        o.state,
+        o.reason,
+        f.equity.toFixed(4),
+        f.cash.toFixed(4),
+        f.quantity.toFixed(6),
+        f.costBasis.toFixed(4),
+      ].join(',');
+    }),
+  ].join('\n');
+}
+export function report(frames: Frame[]) {
+  return {
+    source: 'synthetic-demo',
+    experiment: 'TF-001',
+    symbol: 'AAPL',
+    timezone: 'America/New_York',
+    date: null,
+    barMinutes: 5,
+    parameters: {
+      initialCash: 10000,
+      orderNotional: 100,
+      exposureCap: 0.1,
+      feeBps: 1,
+      slippageBps: 2,
+      minimumRateHz: 20,
+      minimumLeadHz: 8,
+    },
+    metrics: metrics(frames),
+    frames,
+    decisions: frames.map((f) => ({
+      bar: f.index + 1,
+      ...outcome(frames, f.index),
+    })),
+    controls: {
+      random: RANDOM_SESSION.slice(0, frames.length),
+      buyHold: { allocation: 0.1, costsIncluded: false },
+      shuffledConnectome: null,
+    },
+    connections: { brain: false, market: false, broker: false },
+  };
+}
+
+export function referenceDrawdown(frames: Frame[]) {
+  let peak = START_CASH,
+    worst = 0;
+  for (const frame of frames) {
+    peak = Math.max(peak, frame.benchmark);
+    worst = Math.max(worst, ((peak - frame.benchmark) / peak) * 100);
+  }
+  return worst;
 }
