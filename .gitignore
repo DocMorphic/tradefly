@@ -1,0 +1,32 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python and tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.DS_Store
+
+# Downloaded data/code and experiment artifacts
+data/
+vendor/
+runs/
+checkpoints/
+logs/
+*.sqlite*
+*.db
+
+# Future dashboard
+node_modules/

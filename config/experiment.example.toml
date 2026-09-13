@@ -1,0 +1,31 @@
+# Planning example only. No runtime loads or enforces these settings yet.
+name = "tradefly-v1"
+mode = "historical-paper"
+symbol = "AAPL"
+bar_minutes = 5
+regular_session_only = true
+initial_cash_usd = 10000
+seed = 42
+
+[brain]
+dataset = "flywire-v783-female"
+engine = "brian2-reference"
+plasticity = false
+simulated_ms_per_bar = 500
+persist_state_between_bars = true
+freeze_overnight = true
+# Required before experiments: pinned source/data hashes, neuron manifests,
+# chosen numerical timestep, stimulus bounds, and decoder thresholds.
+
+[execution]
+paper_only = true
+max_order_notional_usd = 100
+max_position_equity_fraction = 0.10
+allow_shorting = false
+allow_leverage = false
+max_pending_orders = 1
+
+[broker]
+provider = "alpaca"
+base_url = "https://paper-api.alpaca.markets"
+market_data_feed = "iex"
