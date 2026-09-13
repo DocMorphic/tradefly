@@ -3,7 +3,7 @@
 ## 0 — Project setup
 
 - [x] Create local planning repository and documented defaults.
-- [ ] Confirm private GitHub remote and initial push.
+- [x] Confirm private GitHub remote and initial push: `DocMorphic/tradefly`.
 - [ ] Implement runtime components. None exist yet.
 
 ## 1 — Demonstrate the brain works
