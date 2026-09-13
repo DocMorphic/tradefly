@@ -4,7 +4,8 @@
 
 - [x] Create local planning repository and documented defaults.
 - [x] Confirm private GitHub remote and initial push: `DocMorphic/tradefly`.
-- [ ] Implement runtime components. None exist yet.
+- [x] Build the Indigo Grain desktop and tested synthetic accounting demonstration.
+- [ ] Implement the fly engine, real market feed, and paper broker integration.
 
 ## 1 — Demonstrate the brain works
 
@@ -30,9 +31,11 @@ Configure a dedicated Alpaca paper account, reconcile broker state, implement du
 
 Done when all submissions are paper-only, restarts do not duplicate orders, partial fills and timeouts reconcile correctly, and stale data or missing brain output cannot generate trades. Begin with a supervised session to verify the full event chain.
 
-## 5 — Make it watchable
+## 5 — Make it watchable (desktop demonstration implemented first)
 
-Build the local dashboard: neural activity, BUY/SELL pool rates, current observation, paper holdings, P&L, controls, replay speed, and a trace for each decision.
+Implemented at the user’s request: a desktop with replay, a decision inspector, trade ledger, performance analysis, and exports, using explicitly synthetic data.
+
+Still required: replace fixtures with actual experiment telemetry. Build the local dashboard: neural activity, BUY/SELL pool rates, current observation, paper holdings, P&L, controls, replay speed, and a trace for each decision.
 
 Done when a user can watch the network affect trades, compare matched controls, pause submissions, and export an experiment report. Match dashboard activity to real recorded telemetry.
 

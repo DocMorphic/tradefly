@@ -1,6 +1,6 @@
 # Technical plan
 
-Planning date: 2026-09-14. All components below are proposed unless explicitly marked implemented. The repository currently contains planning artifacts only.
+Planning date: 2026-09-14. All components below are proposed unless explicitly marked implemented. The repository now also contains an interactive desktop and synthetic paper-accounting fixture. The fly engine, genuine neural telemetry, market feed, and broker integration remain unimplemented. See DESKTOP.md.
 
 ## 1. Experiment contract
 
