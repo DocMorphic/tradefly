@@ -313,6 +313,41 @@ small {
   height: calc(100% - 16px);
   resize: none;
 }
+.app-window.snapped {
+  min-width: 0;
+  min-height: 0;
+  resize: none;
+}
+.window-snap-preview {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid #d5ccff;
+  border-radius: 5px;
+  background: #a89aff40;
+  box-shadow: inset 0 0 0 1px #ffffff30, 0 0 30px #b5a2ff24;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px;
+}
+.window-snap-preview span {
+  padding: 6px 12px;
+  background: #30265e;
+  color: #fff;
+  font-size: 14px;
+  border-radius: 4px;
+}
+.app-window.snap-dragging { opacity: 0.82; }
+.app-window.snapped .titlebar { gap: 8px; }
+.app-window.snapped .titlebar > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.window-controls { flex-shrink: 0; }
+.app-window.snapped .window-body { min-width: 0; container: tile / inline-size; }
+.app-window.snapped .window-status { overflow: hidden; }
+.app-window.snapped .window-status span { white-space: nowrap; }
 .titlebar {
   height: 29px;
   min-height: 29px;
@@ -2292,3 +2327,17 @@ body > div:has(> [data-slot='popover-content']) {
 .swarm-graph path.pulse{stroke-dasharray:8 7;animation:swarm-flow 1.5s linear infinite}@keyframes swarm-flow{to{stroke-dashoffset:-30}}
 @media(prefers-reduced-motion:reduce){.swarm-graph path.pulse{animation:none}}
 .comparison-chart{margin:20px 0;padding:10px;background:#f4f0f8;border:1px solid #d5cbe0;border-radius:5px}.comparison-chart svg{display:block;width:100%;height:auto}.comparison-chart text{fill:#79698d;font:12px monospace}.comparison-chart polyline{fill:none}.comparison-random{stroke:#aaa0bb;stroke-width:1;opacity:.3}.comparison-line{stroke-width:2.5}.comparison-0{stroke:#514078}.comparison-1{stroke:#797780;stroke-dasharray:5 5}.comparison-2{stroke:#438881}.comparison-chart figcaption{font-size:12px;color:#79698d}
+
+/* Tiled apps respond to their own width rather than the whole desktop. */
+@container tile (max-width: 760px) {
+  .paper-view, .fly-habitat, .evidence-desk, .swarm-desk { padding: 15px; }
+  .paper-stats, .habitat-readings, .evidence-chain { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paper-two, .swarm-radar, .overview-grid { grid-template-columns: minmax(0, 1fr); }
+  .paper-stat { border-bottom: 1px solid #d8d5e3; }
+  .swarm-search { flex-wrap: wrap; }
+  .swarm-search input { width: 100%; }
+  .swarm-token-list { max-height: 210px; }
+  .evidence-chain button { min-height: 88px; }
+  .habitat-stage { height: 280px; }
+  .habitat-overlay strong { font-size: 15px; }
+}

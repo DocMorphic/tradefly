@@ -33,6 +33,13 @@ import {
   X,
 } from 'lucide-react';
 import { SESSION, metrics } from '@/lib/experiment';
+import {
+  snapAt,
+  snapStyle,
+  keepTitleVisible,
+  restoreAtPointer,
+  type SnapZone,
+} from '@/lib/window-layout';
 
 type AppId =
   | 'overview'
@@ -63,6 +70,9 @@ type Win = {
   z: number;
   minimized: boolean;
   maximized: boolean;
+  snap?: SnapZone | null;
+  width?: number;
+  height?: number;
 };
 const DEFAULT_WINDOW: Win = {
   id: 'overview',
@@ -409,91 +419,219 @@ function DesktopWindow({
   close: () => void;
   children: ReactNode;
 }) {
-  const drag = useRef<{ x: number; y: number; wx: number; wy: number } | null>(
-    null,
-  );
+  const frame = useRef<HTMLElement>(null);
+  const [preview, setPreview] = useState<SnapZone | null>(null);
+  const drag = useRef<{
+    pointer: number;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    ratio: number;
+    titleOffset: number;
+    started: boolean;
+    original: Win;
+    target: SnapZone | null;
+  } | null>(null);
+  function toggleMaximize() {
+    const rect = frame.current?.getBoundingClientRect();
+    update(
+      win.maximized || win.snap
+        ? { maximized: false, snap: null }
+        : {
+            maximized: true,
+            snap: null,
+            width: rect?.width,
+            height: rect?.height,
+          },
+    );
+  }
+  function finishDrag(cancel = false) {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    setPreview(null);
+    if (cancel && d.started) {
+      const { x, y, width, height, snap, maximized } = d.original;
+      update({ x, y, width, height, snap: snap ?? null, maximized });
+    } else if (d.started && d.target)
+      update({ snap: d.target, maximized: false });
+  }
+  useEffect(() => {
+    const cancel = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') finishDrag(true);
+    };
+    const blur = () => finishDrag(true);
+    window.addEventListener('keydown', cancel);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', cancel);
+      window.removeEventListener('blur', blur);
+    };
+  }, []);
   const Icon = APPS[win.id].icon;
   const style = {
     '--win-x': `${win.x}px`,
     '--win-y': `${win.y}px`,
+    width: win.width,
+    height: win.height,
+    ...(win.snap ? snapStyle(win.snap) : {}),
+    ...(win.maximized
+      ? {
+          left: 8,
+          top: 8,
+          width: 'calc(100% - 16px)',
+          height: 'calc(100% - 16px)',
+        }
+      : {}),
     zIndex: win.z,
   } as CSSProperties;
   return (
-    <section
-      className={`app-window ${win.maximized ? 'maximized' : ''}`}
-      style={style}
-      aria-label={APPS[win.id].title}
-      onPointerDown={focus}
-    >
-      <div
-        className="titlebar"
-        onDoubleClick={() => update({ maximized: !win.maximized })}
-        onPointerDown={(e) => {
-          if (
-            (e.target as HTMLElement).closest('button') ||
-            win.maximized ||
-            window.innerWidth < 800
-          )
-            return;
-          drag.current = { x: e.clientX, y: e.clientY, wx: win.x, wy: win.y };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          if (!drag.current) return;
-          update({
-            x: Math.max(
-              0,
-              Math.min(
-                window.innerWidth - 240,
-                drag.current.wx + e.clientX - drag.current.x,
-              ),
-            ),
-            y: Math.max(
-              0,
-              Math.min(
-                window.innerHeight - 160,
-                drag.current.wy + e.clientY - drag.current.y,
-              ),
-            ),
-          });
-        }}
-        onPointerUp={() => {
-          drag.current = null;
-        }}
-        onPointerCancel={() => {
-          drag.current = null;
-        }}
-      >
-        <span>
-          <Icon size={15} />
-          {APPS[win.id].title}
-        </span>
-        <div className="titlebar-lines" />
-        <div className="window-controls">
-          <button
-            aria-label={`Minimize ${APPS[win.id].title}`}
-            onClick={() => update({ minimized: true })}
-          >
-            <Minus size={14} />
-          </button>
-          <button
-            aria-label={`Maximize ${APPS[win.id].title}`}
-            onClick={() => update({ maximized: !win.maximized })}
-          >
-            {win.maximized ? <Square size={12} /> : <Maximize2 size={12} />}
-          </button>
-          <button aria-label={`Close ${APPS[win.id].title}`} onClick={close}>
-            <X size={14} />
-          </button>
+    <>
+      {preview && (
+        <div
+          className="window-snap-preview"
+          style={{ ...snapStyle(preview), zIndex: win.z - 0.5 }}
+          aria-hidden="true"
+        >
+          <span>
+            {preview.includes('-') ? 'Quarter screen' : 'Half screen'}
+          </span>
         </div>
-      </div>
-      <div className="window-body">{children}</div>
-      <div className="window-status">
-        <span>
-          <FlaskConical size={12} /> Synthetic demo · no fly or broker connected
-        </span>
-        <span>TF / {win.id.toUpperCase()}</span>
-      </div>
-    </section>
+      )}
+      <section
+        ref={frame}
+        className={`app-window ${win.maximized ? 'maximized' : ''} ${win.snap ? 'snapped' : ''} ${preview ? 'snap-dragging' : ''}`}
+        style={style}
+        aria-label={APPS[win.id].title}
+        onPointerDown={focus}
+      >
+        <div
+          className="titlebar"
+          title="Drag to an edge for half screen, or a corner for quarter screen. Double-click to maximize or restore."
+          onDoubleClick={(e) => {
+            if (!(e.target as HTMLElement).closest('button')) toggleMaximize();
+          }}
+          onPointerDown={(e) => {
+            if (
+              e.button !== 0 ||
+              (e.target as HTMLElement).closest('button') ||
+              window.innerWidth < 800
+            )
+              return;
+            const rect = frame.current!.getBoundingClientRect();
+            const bounds =
+              frame.current!.parentElement!.getBoundingClientRect();
+            const tiled = win.maximized || win.snap;
+            drag.current = {
+              pointer: e.pointerId,
+              startX: e.clientX,
+              startY: e.clientY,
+              x: win.x,
+              y: win.y,
+              width: tiled
+                ? (win.width ?? Math.min(1060, bounds.width - 172))
+                : rect.width,
+              height: tiled
+                ? (win.height ?? Math.min(720, bounds.height - 47))
+                : rect.height,
+              ratio: (e.clientX - rect.left) / rect.width,
+              titleOffset: e.clientY - rect.top,
+              started: false,
+              original: {
+                ...win,
+                ...(!tiled ? { width: rect.width, height: rect.height } : {}),
+              },
+              target: null,
+            };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const d = drag.current;
+            if (!d || d.pointer !== e.pointerId) return;
+            const bounds =
+              frame.current!.parentElement!.getBoundingClientRect();
+            if (!d.started) {
+              if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4)
+                return;
+              d.started = true;
+              if (d.original.maximized || d.original.snap) {
+                const restored = restoreAtPointer(
+                  e.clientX,
+                  e.clientY,
+                  d.ratio,
+                  d.titleOffset,
+                  d.width,
+                  bounds,
+                );
+                d.x = restored.x;
+                d.y = restored.y;
+                d.startX = e.clientX;
+                d.startY = e.clientY;
+              }
+            }
+            d.target = snapAt(e.clientX, e.clientY, bounds);
+            setPreview(d.target);
+            update({
+              ...keepTitleVisible(
+                d.x + e.clientX - d.startX,
+                d.y + e.clientY - d.startY,
+                d.width,
+                bounds,
+              ),
+              width: d.width,
+              height: d.height,
+              snap: null,
+              maximized: false,
+            });
+          }}
+          onPointerUp={(e) => {
+            if (drag.current?.pointer !== e.pointerId) return;
+            finishDrag();
+            if (e.currentTarget.hasPointerCapture(e.pointerId))
+              e.currentTarget.releasePointerCapture(e.pointerId);
+          }}
+          onPointerCancel={() => finishDrag(true)}
+          onLostPointerCapture={() => finishDrag(true)}
+        >
+          <span>
+            <Icon size={15} />
+            {APPS[win.id].title}
+          </span>
+          <div className="titlebar-lines" />
+          <div className="window-controls">
+            <button
+              aria-label={`Minimize ${APPS[win.id].title}`}
+              onClick={() => update({ minimized: true })}
+            >
+              <Minus size={14} />
+            </button>
+            <button
+              aria-label={`${win.maximized || win.snap ? 'Restore' : 'Maximize'} ${APPS[win.id].title}`}
+              onClick={toggleMaximize}
+            >
+              {win.maximized || win.snap ? (
+                <Square size={12} />
+              ) : (
+                <Maximize2 size={12} />
+              )}
+            </button>
+            <button aria-label={`Close ${APPS[win.id].title}`} onClick={close}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+        <div className="window-body">{children}</div>
+        <div className="window-status">
+          <span>
+            <FlaskConical size={12} /> Synthetic demo · no fly or broker
+            connected
+          </span>
+          <span>TF / {win.id.toUpperCase()}</span>
+        </div>
+      </section>
+    </>
   );
 }
