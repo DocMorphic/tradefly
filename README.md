@@ -52,3 +52,7 @@ The real account balance comes from Alpaca rather than the demo bankroll. Execut
 | `.env.example` | Local paper credential names |
 
 Large datasets, credentials, downloaded third-party code, and experiment output stay outside Git. Any reused code must retain its upstream license, and data licenses and attribution must be recorded independently.
+
+## Swarm research desk
+
+The separate Swarm research window adapts FlySwarm's token radar, holder sample, funding graph, wallet dossiers, cohort memory, explainable rule scores, simulated position plans and terminal. Token/holder observations are labeled by source; funding/cohort/return examples are prominently synthetic. Research settings cannot place Alpaca orders or alter the biological simulation. See [the upstream audit and feature map](docs/FLYSWARM_AUDIT.md).

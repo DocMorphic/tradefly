@@ -2199,3 +2199,46 @@ body > div:has(> [data-slot='popover-content']) {
   border-radius: 4px;
   margin-bottom: 10px;
 }
+
+/* FlySwarm research uses Tradefly's existing indigo desktop palette. */
+.swarm-desk{padding:24px;color:#34274b;font-size:14px;line-height:1.55;min-width:0}
+.swarm-top,.swarm-section-title,.swarm-control{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.swarm-top h2{font:italic 32px var(--font-display,Georgia,serif);margin:4px 0 12px}
+.swarm-eyebrow{font:12px var(--font-code,monospace);letter-spacing:.12em;color:#75628f}
+.swarm-desk button,.swarm-desk input{font:inherit}
+.swarm-desk button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #c5b8d7;background:#f4f0fa;border-radius:5px;color:#433158;padding:7px 11px;cursor:pointer}
+.swarm-desk button:hover{background:#e3daef}.swarm-desk button:disabled{opacity:.5;cursor:default}
+.swarm-desk button[aria-pressed=true],.swarm-desk button.selected{background:#514078;color:#fff;border-color:#514078}
+.swarm-desk input:not([type=checkbox]){border:1px solid #c5b8d7;border-radius:4px;background:#fff;color:#352748;padding:9px;min-width:0}
+.swarm-boundary{padding:12px 15px;background:#e9e3f4;border-left:3px solid #6d589a;margin:8px 0 18px;font-size:14px}
+.swarm-tabs{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:12px;border-bottom:1px solid #d5cbe0}
+.swarm-tabs button{border:0;background:transparent}
+.swarm-control{padding:12px 0;border-bottom:1px solid #d5cbe0;margin-bottom:18px;font-size:13px}
+.swarm-control>div,.swarm-wallets,.swarm-links{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.swarm-search{display:flex;align-items:center;gap:10px}.swarm-search input{flex:1}
+.swarm-source,.swarm-muted,.swarm-credit{color:#70607f;font-size:13px}
+.swarm-source{padding:10px 0}.swarm-alert{padding:12px;background:#f2e1eb;color:#763455;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.swarm-radar{display:grid;grid-template-columns:210px minmax(0,1fr);gap:24px;margin-top:12px}
+.swarm-token-list{display:flex;flex-direction:column;gap:7px;max-height:530px;overflow:auto}
+.swarm-token-list button{flex-direction:column;align-items:flex-start;text-align:left}
+.swarm-token-list span{font-size:13px}.swarm-token-list small{font-size:12px;opacity:.8}
+.swarm-address{overflow-wrap:anywhere;font-size:13px}.swarm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:18px 0}
+.swarm-metrics>div{display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid #d5cbe0;border-radius:5px;min-width:0}
+.swarm-metrics small{color:#756685;font-size:12px}.swarm-metrics strong{font:20px var(--font-code,monospace);overflow-wrap:anywhere}
+.swarm-empty{padding:28px 16px;background:#efebf5;border:1px dashed #c0b1d3}
+.swarm-desk h3{font-size:18px;font-weight:500;margin:12px 0}.swarm-prototype{font:12px var(--font-code,monospace);color:#775096;border-bottom:1px dashed #c7b8d8;padding-bottom:9px}
+.swarm-graph,.swarm-bubbles{margin:18px 0;background:#252046;border:1px solid #524272;border-radius:6px;color:#d9d0ed;padding:12px}
+.swarm-graph svg,.swarm-bubbles svg{width:100%;height:auto;display:block}.swarm-graph figcaption,.swarm-bubbles figcaption{font-size:12px;color:#bbb0d2}
+.swarm-graph path{fill:none;stroke:#72608e;stroke-width:1.5}.swarm-graph path.pulse{stroke:#beb0ee;stroke-width:2}
+.swarm-graph circle{fill:#c6b4f0;stroke:#ede5ff}.swarm-graph text,.swarm-bubbles text{fill:#d5cce5;font:12px var(--font-code,monospace)}
+.swarm-bubbles circle{fill:#514575;stroke:#ac95d2}.swarm-bubbles .new-holder{fill:#786298;stroke:#e5d3ff}
+.swarm-table{width:100%;overflow:auto;margin:16px 0}.swarm-table table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}
+.swarm-table th{font-weight:500;color:#75658a;background:#eae4f1;white-space:nowrap}.swarm-table th,.swarm-table td{padding:10px;border-bottom:1px solid #d9d0e4}
+.swarm-table pre{max-width:360px;white-space:pre-wrap;font-size:12px}.swarm-table a,.swarm-links a,.swarm-credit a{color:#6b4396;text-decoration:underline}
+.swarm-dossier,.swarm-cohorts article{border:1px solid #d5cbe0;border-radius:6px;padding:15px;margin:15px 0}
+.swarm-evidence{padding:15px 30px;background:#efebf5}.swarm-evidence li{margin:7px 0}
+.swarm-plan{display:flex;flex-wrap:wrap;gap:15px;align-items:end;margin:20px 0}.swarm-plan label{display:flex;flex-direction:column;gap:7px}.swarm-plan label:first-child{flex-direction:row;align-items:center;align-self:center}
+.swarm-plan input[type=number]{max-width:150px}.swarm-terminal{background:#252046;color:#ded3f0;padding:18px;border-radius:6px;font:13px/1.8 var(--font-code,monospace);overflow:auto}
+.swarm-terminal .swarm-prototype{color:#bf9ada}.swarm-terminal>div{display:grid;grid-template-columns:95px minmax(240px,1fr) 95px;gap:14px;border-bottom:1px solid #44375c;padding:7px 0}.swarm-terminal time{color:#a598bf}.swarm-terminal b{text-align:right;font-weight:400}
+.swarm-credit{border-top:1px solid #d5cbe0;margin-top:24px;padding-top:14px}
+@media(max-width:700px){.swarm-desk{padding:16px}.swarm-radar{grid-template-columns:1fr}.swarm-token-list{max-height:210px}.swarm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.swarm-search{flex-wrap:wrap}.swarm-search input{width:100%}.swarm-top h2{font-size:27px}}

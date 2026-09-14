@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { SwarmResearch } from '@/components/swarm-research';
 import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
@@ -29,8 +30,16 @@ import {
 } from 'lucide-react';
 import { SESSION, metrics } from '@/lib/experiment';
 
-type AppId = 'overview' | 'brain' | 'ledger' | 'analysis' | 'notes' | 'log';
+type AppId =
+  | 'overview'
+  | 'brain'
+  | 'ledger'
+  | 'analysis'
+  | 'notes'
+  | 'log'
+  | 'swarm';
 const APPS = {
+  swarm: { title: 'Swarm research', icon: FlaskConical },
   log: { title: 'Fly log', icon: Activity },
   overview: { title: 'Observation desk', icon: Grid2X2 },
   brain: { title: 'Decision inspector', icon: Network },
@@ -219,6 +228,7 @@ export default function Desktop() {
     setPlaying((p) => !p);
   }
   function content(id: AppId): ReactNode {
+    if (id === 'swarm') return <SwarmResearch />;
     if (id === 'log') return <FlyLog backend={backend} />;
     if (mode === 'paper') return <PaperView id={id} backend={backend} />;
     return (

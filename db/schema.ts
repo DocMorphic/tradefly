@@ -8,3 +8,9 @@ export const backendState = sqliteTable('backend_state', {
   commandAt: text('command_at'),
   commandPayload: text('command_payload'),
 });
+export const swarmResearch = sqliteTable('swarm_research', {
+  id: integer('id').primaryKey(),
+  revision: integer('revision').notNull().default(0),
+  state: text('state').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
