@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { FlyActivity } from './activity';
+import { makeWings } from './wings';
 export function makeFlyScene(
   host: HTMLElement,
   read: () => FlyActivity,
@@ -53,15 +54,6 @@ export function makeFlyScene(
       roughness: 0.25,
       metalness: 0.25,
       flatShading: true,
-    }),
-    wing: new T.MeshPhysicalMaterial({
-      color: '#ded4ff',
-      transparent: true,
-      opacity: 0.43,
-      roughness: 0.18,
-      metalness: 0.1,
-      side: T.DoubleSide,
-      depthWrite: false,
     }),
     desk: new T.MeshStandardMaterial({ color: '#514267', roughness: 0.7 }),
     keys: new T.MeshStandardMaterial({ color: '#9d8cb7', roughness: 0.4 }),
@@ -173,33 +165,7 @@ export function makeFlyScene(
       bone(leg, b, c, 0.018);
       oval(leg, mats.dark, c.toArray(), [0.07, 0.023, 0.13]);
     }
-  const wings: T.Group[] = [];
-  for (const side of [-1, 1]) {
-    const wing = new T.Group();
-    wing.position.set(side * 0.2, 1.44, 0.02);
-    fly.add(wing);
-    wings.push(wing);
-    const leaf = oval(
-      wing,
-      mats.wing,
-      [side * 0.51, 0, -0.48],
-      [0.43, 0.018, 0.83],
-    );
-    leaf.rotation.y = side * 0.46;
-    const veins = new T.LineBasicMaterial({
-      color: '#e0d8f1',
-      transparent: true,
-      opacity: 0.55,
-    });
-    for (let j = 0; j < 3; j++) {
-      const points = [
-        new T.Vector3(0, 0.025, 0),
-        new T.Vector3(side * (0.35 + j * 0.08), 0.025, -0.5),
-        new T.Vector3(side * (0.45 + j * 0.1), 0.025, -1.05 + j * 0.13),
-      ];
-      wing.add(new T.Line(new T.BufferGeometry().setFromPoints(points), veins));
-    }
-  }
+  const wings = makeWings(fly);
   // A tiny physical keyboard; front-leg movements mirror activity, never submit orders.
   const keyboard = new T.Group();
   keyboard.position.set(0.3, 0.18, 0.87);
@@ -316,11 +282,16 @@ export function makeFlyScene(
     });
     wings.forEach((wing, i) => {
       const side = i === 0 ? -1 : 1;
-      wing.rotation.z =
-        side *
-        ((fill ? 0.35 : 0.1) +
-          (working ? 0.11 : 0.015) *
-            Math.sin(t * (fill ? 28 : working ? 15 : 2)));
+      // Rest over the abdomen; open gently for activity and lift for fills.
+      // These illustrative beats are deliberately slow enough to read on screen.
+      const spread = side * (fill ? -0.56 : working ? -0.18 : -0.08);
+      const lift = side * ((fill ? 0.28 : 0.055) +
+        (fill ? 0.20 : working ? 0.025 : 0.008) *
+        Math.sin(t * (fill ? 24 : working ? 6 : 1.8)));
+      if (active) {
+        wing.rotation.y = T.MathUtils.damp(wing.rotation.y, spread, 7, dt);
+        wing.rotation.z = T.MathUtils.damp(wing.rotation.z, lift, 14, dt);
+      }
     });
     controls.update();
     renderer.render(scene, camera);
