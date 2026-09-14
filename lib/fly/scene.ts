@@ -1,177 +1,242 @@
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildFlyModel, type ModelLeg } from './desktopfly-model.mjs';
 import type { FlyActivity } from './activity';
-
-// Ground clearance and joint conventions adapted from DesktopFly's LegDynamics.
-// Rendering poses are illustrative telemetry animations, never a trading controller.
-function groundLift(leg: ModelLeg, knee: number) {
-  const g = leg.geometry;
-  const a =
-    g.femur + g.tibia * Math.cos(knee) + g.tarsus * Math.cos(knee + 0.35);
-  const b = g.tibia * Math.sin(knee) + g.tarsus * Math.sin(knee + 0.35);
-  return (
-    Math.atan2(b, a) -
-    Math.asin(T.MathUtils.clamp(g.attachZ / Math.hypot(a, b), -1, 1))
-  );
-}
 export function makeFlyScene(
   host: HTMLElement,
   read: () => FlyActivity,
   moving: () => boolean,
 ) {
   const scene = new T.Scene();
-  scene.background = new T.Color('#1a1830');
-  scene.fog = new T.Fog('#1a1830', 10, 23);
-  const camera = new T.PerspectiveCamera(34, 1, 0.05, 40);
-  camera.up.set(0, 0, 1);
-  camera.position.set(3.6, 4.6, 3.8);
+  scene.background = new T.Color('#17132d');
+  scene.fog = new T.Fog('#17132d', 8, 19);
+  const camera = new T.PerspectiveCamera(36, 1, 0.1, 40);
+  camera.position.set(4.6, 3.2, 5.2);
   const renderer = new T.WebGLRenderer({
     antialias: true,
+    alpha: false,
     powerPreference: 'low-power',
   });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.toneMappingExposure = 1.2;
   renderer.domElement.setAttribute(
     'aria-label',
-    'Articulated fruit fly with red compound eyes, banded abdomen and folded wings',
+    'Interactive stylized 3D fruit fly at a trading terminal',
   );
   renderer.domElement.setAttribute('role', 'img');
   host.appendChild(renderer.domElement);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, -0.1, 0.55);
+  controls.target.set(0, 0.9, 0);
   controls.enableDamping = true;
   controls.enablePan = false;
-  controls.minDistance = 3.7;
+  controls.minDistance = 3.6;
   controls.maxDistance = 10;
-  controls.minPolarAngle = 0.15;
-  controls.maxPolarAngle = Math.PI * 0.47;
-  const sky = new T.HemisphereLight('#faf0e6', '#343048', 2.1);
-  sky.position.set(0, 0, 10);
-  scene.add(sky);
-  const key = new T.DirectionalLight('#fff0df', 3.1);
-  key.position.set(1, 3, 6);
-  key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.camera.left = -3;
-  key.shadow.camera.right = 3;
-  key.shadow.camera.top = 3;
-  key.shadow.camera.bottom = -3;
-  key.shadow.normalBias = 0.015;
-  key.shadow.bias = -0.0001;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minPolarAngle = 0.3;
+  scene.add(new T.HemisphereLight('#ddd4ff', '#29223b', 2));
+  const key = new T.DirectionalLight('#e9d8ff', 4);
+  key.position.set(3, 6, 3);
   scene.add(key);
-  const rim = new T.DirectionalLight('#919ef7', 2);
-  rim.position.set(-4, -3, 3);
+  const rim = new T.DirectionalLight('#8d8aff', 3);
+  rim.position.set(-4, 2, -3);
   scene.add(rim);
-  const floor = new T.Mesh(
-    new T.PlaneGeometry(60, 60),
-    new T.MeshStandardMaterial({ color: '#24203b', roughness: 0.95 }),
-  );
-  floor.position.z = -0.1;
-  floor.receiveShadow = true;
-  scene.add(floor);
-  const stage = new T.Mesh(
-    new T.CylinderGeometry(2.65, 2.68, 0.12, 96),
-    new T.MeshStandardMaterial({
-      color: '#4a4364',
-      roughness: 0.8,
-      metalness: 0.05,
+  const mats = {
+    body: new T.MeshStandardMaterial({
+      color: '#7b6189',
+      roughness: 0.45,
+      metalness: 0.25,
     }),
-  );
-  stage.rotation.x = Math.PI / 2;
-  stage.position.z = -0.06;
-  stage.receiveShadow = true;
-  scene.add(stage);
-  const ring = new T.Mesh(
-    new T.TorusGeometry(2.58, 0.008, 6, 100),
-    new T.MeshBasicMaterial({ color: '#847aab' }),
-  );
-  ring.position.z = 0.004;
-  scene.add(ring);
-  const specimen = buildFlyModel();
-  specimen.root.scale.setScalar(0.1);
-  const body = new T.Group();
-  body.add(specimen.root);
-  scene.add(body);
-  specimen.legs.forEach((leg) => {
-    leg.kneeAngle = 0.95;
-    leg.lift = groundLift(leg, 0.95);
-    leg.apply();
-  });
-  // Fine thoracic setae and wing veins give the anatomical model texture at close range.
-  const hairPoints: T.Vector3[] = [];
-  for (let i = 0; i < 84; i++) {
-    const phi = i * 2.39996,
-      z = 0.1 + 0.88 * ((i + 0.5) / 84),
-      r = Math.sqrt(1 - z * z);
-    const p = new T.Vector3(
-      4.37 * r * Math.cos(phi),
-      2.5 + 5.29 * r * Math.sin(phi),
-      6.2 + 3.91 * z,
-    );
-    hairPoints.push(
-      p,
-      p
-        .clone()
-        .add(
-          new T.Vector3(r * Math.cos(phi), r * Math.sin(phi), z).multiplyScalar(
-            0.48 + (i % 5) * 0.12,
-          ),
-        ),
-    );
+    dark: new T.MeshStandardMaterial({ color: '#342b4a', roughness: 0.6 }),
+    eye: new T.MeshStandardMaterial({
+      color: '#9d4e8f',
+      roughness: 0.25,
+      metalness: 0.25,
+      flatShading: true,
+    }),
+    wing: new T.MeshPhysicalMaterial({
+      color: '#ded4ff',
+      transparent: true,
+      opacity: 0.43,
+      roughness: 0.18,
+      metalness: 0.1,
+      side: T.DoubleSide,
+      depthWrite: false,
+    }),
+    desk: new T.MeshStandardMaterial({ color: '#514267', roughness: 0.7 }),
+    keys: new T.MeshStandardMaterial({ color: '#9d8cb7', roughness: 0.4 }),
+  };
+  const sphere = new T.SphereGeometry(1, 24, 16);
+  function oval(
+    parent: T.Object3D,
+    material: T.Material,
+    p: number[],
+    scale: number[],
+  ) {
+    const mesh = new T.Mesh(sphere, material);
+    mesh.position.set(p[0], p[1], p[2]);
+    mesh.scale.set(scale[0], scale[1], scale[2]);
+    parent.add(mesh);
+    return mesh;
   }
-  specimen.root.add(
-    new T.LineSegments(
-      new T.BufferGeometry().setFromPoints(hairPoints),
-      new T.LineBasicMaterial({
-        color: '#32251d',
-        transparent: true,
-        opacity: 0.72,
-      }),
-    ),
-  );
-  const veinMaterial = new T.LineBasicMaterial({
-    color: '#7e715e',
-    transparent: true,
-    opacity: 0.38,
-  });
-  specimen.foldedWings.children.forEach((wing) => {
-    for (const side of [-1, 1]) {
-      const points = [
-        [0, -0.7, 0.1],
-        [side * 1.0, -4, 0.1],
-        [side * 1.9, -8, 0.1],
-        [side * 1.2, -13, 0.1],
-        [0, -15.8, 0.1],
-      ].map((p) => new T.Vector3(...(p as [number, number, number])));
-      wing.add(
-        new T.Line(new T.BufferGeometry().setFromPoints(points), veinMaterial),
-      );
-    }
-    wing.add(
-      new T.Line(
-        new T.BufferGeometry().setFromPoints([
-          new T.Vector3(0, -1, 0.1),
-          new T.Vector3(0.4, -8, 0.1),
-          new T.Vector3(0, -15, 0.1),
-        ]),
-        veinMaterial,
-      ),
+  function box(
+    parent: T.Object3D,
+    material: T.Material,
+    p: number[],
+    size: number[],
+  ) {
+    const mesh = new T.Mesh(
+      new T.BoxGeometry(size[0], size[1], size[2]),
+      material,
     );
-    (wing as T.Mesh).castShadow = false;
-  });
-  let visible = true,
+    mesh.position.set(p[0], p[1], p[2]);
+    parent.add(mesh);
+    return mesh;
+  }
+  function bone(parent: T.Object3D, a: T.Vector3, b: T.Vector3, r = 0.028) {
+    const mesh = new T.Mesh(
+      new T.CylinderGeometry(r, r * 0.75, a.distanceTo(b), 7),
+      mats.dark,
+    );
+    mesh.position.copy(a).add(b).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(
+      new T.Vector3(0, 1, 0),
+      b.clone().sub(a).normalize(),
+    );
+    parent.add(mesh);
+  }
+  const plinth = new T.Mesh(
+    new T.CylinderGeometry(2.2, 2.28, 0.18, 64),
+    mats.desk,
+  );
+  plinth.position.y = 0.02;
+  scene.add(plinth);
+  const ground = new T.Mesh(
+    new T.PlaneGeometry(60, 60),
+    new T.MeshStandardMaterial({ color: '#211a37', roughness: 1 }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.09;
+  scene.add(ground);
+  const ring = new T.Mesh(
+    new T.TorusGeometry(2.16, 0.012, 6, 100),
+    new T.MeshBasicMaterial({ color: '#ae8dce' }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.12;
+  scene.add(ring);
+  const fly = new T.Group();
+  fly.position.set(0.3, 0, -0.15);
+  scene.add(fly);
+  oval(fly, mats.body, [0, 1.03, -0.52], [0.35, 0.32, 0.64]);
+  for (let i = 0; i < 5; i++) {
+    const band = new T.Mesh(
+      new T.TorusGeometry(0.295 - i * 0.025, 0.027, 6, 30),
+      mats.dark,
+    );
+    band.scale.y = 0.85;
+    band.position.set(0, 1.04, -0.35 - i * 0.16);
+    fly.add(band);
+  }
+  oval(fly, mats.body, [0, 1.15, 0.02], [0.37, 0.36, 0.45]);
+  const head = new T.Group();
+  head.position.set(0, 1.22, 0.5);
+  fly.add(head);
+  oval(head, mats.dark, [0, 0, 0], [0.31, 0.29, 0.28]);
+  for (const side of [-1, 1]) {
+    const eye = new T.Mesh(new T.IcosahedronGeometry(0.245, 2), mats.eye);
+    eye.scale.set(0.85, 1.1, 0.9);
+    eye.position.set(side * 0.23, 0.035, 0.12);
+    head.add(eye);
+    oval(
+      head,
+      new T.MeshBasicMaterial({ color: '#eedbff' }),
+      [side * 0.28, 0.145, 0.265],
+      [0.034, 0.045, 0.019],
+    );
+    const a = new T.Vector3(side * 0.11, 0.12, 0.24),
+      b = new T.Vector3(side * 0.2, 0.35, 0.39);
+    bone(head, a, b, 0.012);
+    oval(head, mats.body, b.toArray(), [0.04, 0.065, 0.04]);
+  }
+  const legs: T.Group[] = [];
+  for (const side of [-1, 1])
+    for (let i = 0; i < 3; i++) {
+      const leg = new T.Group();
+      leg.position.set(side * 0.25, 1.02, 0.3 - i * 0.38);
+      fly.add(leg);
+      legs.push(leg);
+      const a = new T.Vector3(0, 0, 0),
+        b = new T.Vector3(side * 0.4, -0.34, 0.18 - i * 0.12),
+        c = new T.Vector3(side * 0.48, -0.85, 0.43 - i * 0.25);
+      bone(leg, a, b, 0.028);
+      bone(leg, b, c, 0.018);
+      oval(leg, mats.dark, c.toArray(), [0.07, 0.023, 0.13]);
+    }
+  const wings: T.Group[] = [];
+  for (const side of [-1, 1]) {
+    const wing = new T.Group();
+    wing.position.set(side * 0.2, 1.44, 0.02);
+    fly.add(wing);
+    wings.push(wing);
+    const leaf = oval(
+      wing,
+      mats.wing,
+      [side * 0.51, 0, -0.48],
+      [0.43, 0.018, 0.83],
+    );
+    leaf.rotation.y = side * 0.46;
+    const veins = new T.LineBasicMaterial({
+      color: '#e0d8f1',
+      transparent: true,
+      opacity: 0.55,
+    });
+    for (let j = 0; j < 3; j++) {
+      const points = [
+        new T.Vector3(0, 0.025, 0),
+        new T.Vector3(side * (0.35 + j * 0.08), 0.025, -0.5),
+        new T.Vector3(side * (0.45 + j * 0.1), 0.025, -1.05 + j * 0.13),
+      ];
+      wing.add(new T.Line(new T.BufferGeometry().setFromPoints(points), veins));
+    }
+  }
+  // A tiny physical keyboard; front-leg movements mirror activity, never submit orders.
+  const keyboard = new T.Group();
+  keyboard.position.set(0.3, 0.18, 0.87);
+  scene.add(keyboard);
+  box(keyboard, mats.dark, [0, 0, 0], [1.08, 0.1, 0.43]);
+  for (let row = 0; row < 3; row++)
+    for (let col = 0; col < 9; col++)
+      box(
+        keyboard,
+        mats.keys,
+        [-0.46 + col * 0.115, 0.061, -0.13 + row * 0.13],
+        [0.086, 0.025, 0.09],
+      );
+  const monitor = new T.Group();
+  monitor.position.set(-1.22, 0.78, -0.24);
+  monitor.rotation.y = 0.35;
+  scene.add(monitor);
+  box(monitor, mats.dark, [0, 0, 0], [1.12, 0.76, 0.1]);
+  box(monitor, mats.dark, [0, -0.49, -0.015], [0.12, 0.36, 0.1]);
+  box(monitor, mats.dark, [0, -0.65, 0.06], [0.5, 0.04, 0.33]);
+  const screen = document.createElement('canvas');
+  screen.width = 512;
+  screen.height = 320;
+  const ctx = screen.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable');
+  const texture = new T.CanvasTexture(screen);
+  texture.colorSpace = T.SRGBColorSpace;
+  const display = new T.Mesh(
+    new T.PlaneGeometry(1, 0.63),
+    new T.MeshBasicMaterial({ map: texture }),
+  );
+  display.position.z = 0.056;
+  monitor.add(display);
+  let lastText = '',
     lastTime = 0,
     t = 0,
-    gait = 0,
-    mode = '',
-    transitionAge = 0,
-    flight = 0,
-    heading = 0;
+    visible = true;
   const resize = new ResizeObserver(() => {
     const w = host.clientWidth,
       h = host.clientHeight;
@@ -182,144 +247,109 @@ export function makeFlyScene(
     }
   });
   resize.observe(host);
-  const observer = new IntersectionObserver((entries) => {
+  const visibility = new IntersectionObserver((entries) => {
     visible = entries[0]?.isIntersecting ?? false;
   });
-  observer.observe(host);
+  visibility.observe(host);
+  function paint(a: FlyActivity) {
+    ctx!.fillStyle = '#191229';
+    ctx!.fillRect(0, 0, 512, 320);
+    ctx!.fillStyle = '#a591c7';
+    ctx!.font = '22px monospace';
+    ctx!.fillText(a.demo ? 'ANIMATION DEMO' : 'TRADEFLY / PAPER', 28, 44);
+    ctx!.fillStyle = '#ede1ff';
+    ctx!.font = 'bold 54px monospace';
+    ctx!.fillText(a.symbol.slice(0, 12), 28, 126);
+    ctx!.font = '32px monospace';
+    ctx!.fillStyle =
+      a.mood === 'BUY' ? '#b1d6cd' : a.mood === 'SELL' ? '#daa4c5' : '#b8a9e3';
+    ctx!.fillText(a.mood, 28, 190);
+    ctx!.fillStyle = '#8b79a8';
+    ctx!.font = '17px monospace';
+    ctx!.fillText(
+      a.demo ? 'No orders generated' : 'Recorded activity display',
+      28,
+      270,
+    );
+    texture.needsUpdate = true;
+  }
   renderer.setAnimationLoop((now) => {
-    if (now - lastTime < 1000 / 45) return;
+    if (now - lastTime < 1000 / 30) return;
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
     if (!visible || document.hidden) return;
     const a = read(),
       active = moving();
-    const event = a.mood + ':' + a.key;
-    if (event !== mode) {
-      mode = event;
-      transitionAge = 0;
+    if (active) t += dt;
+    const working = ['SCANNING', 'BUY', 'SELL', 'PENDING', 'FILLED'].includes(
+        a.mood,
+      ),
+      buy = a.mood === 'BUY',
+      sell = a.mood === 'SELL',
+      fill = a.mood === 'FILLED';
+    const key = a.mood + a.symbol + a.demo;
+    if (key !== lastText) {
+      paint(a);
+      lastText = key;
     }
-    if (active) {
-      t += dt;
-      transitionAge += dt;
-      const walking = a.mood === 'SCANNING' || a.mood === 'SELL';
-      const grooming = a.mood === 'HOLD' || a.mood === 'PENDING';
-      const reaching = a.mood === 'BUY';
-      // A short flutter after a new confirmed fill, rather than endless celebration.
-      const liftTarget =
-        a.mood === 'FILLED' && transitionAge < 1.6
-          ? Math.sin(Math.min(1, transitionAge / 1.6) * Math.PI)
-          : 0;
-      flight = T.MathUtils.damp(flight, liftTarget, 9, dt);
-      const blend = 1 - Math.exp(-14 * dt);
-      if (walking) gait = (gait + dt * 3.4) % 1;
-      specimen.legs.forEach((leg) => {
-        let angle = 0,
-          knee = 0.95,
-          lift = groundLift(leg, knee);
-        if (walking) {
-          const phase = (gait + leg.phase) % 1,
-            stance = 0.72;
-          angle =
-            0.25 *
-            (phase < stance
-              ? 1 - (2 * phase) / stance
-              : -1 +
-                2 *
-                  T.MathUtils.smoothstep(
-                    (phase - stance) / (1 - stance),
-                    0,
-                    1,
-                  ));
-          if (a.mood === 'SELL') angle = -angle;
-          lift +=
-            phase > stance
-              ? 0.28 * Math.sin(((phase - stance) / (1 - stance)) * Math.PI)
-              : 0;
-        }
-        if ((grooming || reaching) && leg.isFront) {
-          angle =
-            0.35 + 0.16 * Math.sin(t * (reaching ? 8 : 13) + leg.swingSign);
-          knee = 0.85;
-          lift = 0.55 + 0.09 * Math.sin(t * 12 + leg.swingSign);
-        }
-        if (flight > 0.03) {
-          angle = T.MathUtils.lerp(angle, -0.28, flight);
-          knee = T.MathUtils.lerp(knee, 1.15, flight);
-          lift = T.MathUtils.lerp(lift, 0.7, flight);
-        }
-        leg.angle += (angle - leg.angle) * blend;
-        leg.kneeAngle += (knee - leg.kneeAngle) * blend;
-        leg.lift += (lift - leg.lift) * blend;
-        if (flight < 0.03)
-          leg.lift = Math.max(leg.lift, groundLift(leg, leg.kneeAngle));
-        leg.apply();
-      });
-      const targetHeading = walking
-        ? 0.17 * Math.sin(t * 0.65)
-        : reaching
-          ? -0.12
-          : 0;
-      heading = T.MathUtils.damp(heading, targetHeading, 7, dt);
-      body.rotation.z = heading;
-      body.position.y = T.MathUtils.damp(
-        body.position.y,
-        walking ? 0.1 * Math.sin(t * 0.8) : 0,
-        5,
-        dt,
-      );
-      body.position.z = flight * 0.35;
-      body.rotation.x = T.MathUtils.damp(body.rotation.x, -flight * 0.1, 8, dt);
-      specimen.abdomen.scale.z =
-        0.75 * (1 + 0.012 * Math.sin(t * (walking ? 3 : 1.5)));
-      const stroke = Math.sin(t * 2 * Math.PI * 19),
-        beat = T.MathUtils.smoothstep(flight, 0.25, 0.7);
-      specimen.foldedWings.children.forEach((wing, i) => {
-        const side = i === 0 ? -1 : 1;
-        wing.rotation.set(
-          stroke * 0.3 * beat,
-          0,
-          side * (0.13 + flight * 0.97 + stroke * 0.13 * beat),
-        );
-      });
-      [specimen.blurWingL, specimen.blurWingR].forEach((wing, i) => {
-        wing.visible = flight > 0.08;
-        (wing.material as T.MeshBasicMaterial).opacity =
-          (0.08 + 0.09 * Math.abs(stroke)) * flight;
-        wing.rotation.z = (i === 0 ? 1 : -1) * (0.45 + stroke * 0.15);
-      });
-    }
+    fly.position.y =
+      (working ? 0.022 : 0.007) * Math.sin(t * (working ? 4 : 1.3)) +
+      (fill ? 0.09 * Math.abs(Math.sin(t * 4)) : 0);
+    fly.rotation.y = sell
+      ? -0.14 + 0.06 * Math.sin(t * 3)
+      : buy
+        ? 0.12
+        : working
+          ? 0.075 * Math.sin(t * 1.4)
+          : 0.015 * Math.sin(t * 0.5);
+    head.rotation.y = working
+      ? 0.17 * Math.sin(t * 1.7)
+      : 0.03 * Math.sin(t * 0.5);
+    head.rotation.x =
+      a.mood === 'PAUSED' || a.mood === 'CLOSED' ? 0.13 : buy ? -0.08 : 0;
+    legs.forEach((leg, i) => {
+      leg.rotation.x =
+        working && i % 3 === 0
+          ? 0.14 * Math.sin(t * (buy || sell ? 15 : 7) + i)
+          : 0.015 * Math.sin(t + i);
+      leg.rotation.z = fill ? 0.06 * Math.sin(t * 10 + i) : 0;
+    });
+    wings.forEach((wing, i) => {
+      const side = i === 0 ? -1 : 1;
+      wing.rotation.z =
+        side *
+        ((fill ? 0.35 : 0.1) +
+          (working ? 0.11 : 0.015) *
+            Math.sin(t * (fill ? 28 : working ? 15 : 2)));
+    });
     controls.update();
     renderer.render(scene, camera);
   });
   return {
     resetCamera() {
-      camera.position.set(3.6, 4.6, 3.8);
-      controls.target.set(0, -0.1, 0.55);
+      camera.position.set(4.6, 3.2, 5.2);
+      controls.target.set(0, 0.9, 0);
       controls.update();
     },
     dispose() {
       renderer.setAnimationLoop(null);
       resize.disconnect();
-      observer.disconnect();
+      visibility.disconnect();
       controls.dispose();
       const geometries = new Set<T.BufferGeometry>(),
-        materials = new Set<T.Material>(),
-        textures = new Set<T.Texture>();
-      scene.traverse((o) => {
-        if (o instanceof T.Mesh || o instanceof T.Line) {
-          geometries.add(o.geometry);
-          for (const m of Array.isArray(o.material)
-            ? o.material
-            : [o.material]) {
-            materials.add(m);
-            for (const v of Object.values(m))
-              if (v instanceof T.Texture) textures.add(v);
-          }
+        materials = new Set<T.Material>();
+      scene.traverse((object) => {
+        if (object instanceof T.Mesh || object instanceof T.Line) {
+          geometries.add(object.geometry);
+          (Array.isArray(object.material)
+            ? object.material
+            : [object.material]
+          ).forEach((m) => materials.add(m));
         }
       });
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
-      textures.forEach((v) => v.dispose());
+      texture.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();

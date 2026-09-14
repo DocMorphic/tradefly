@@ -50,10 +50,7 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
         }
       })
       .catch(() => {
-        if (!cancelled)
-          setStatus(
-            'The 3D scene could not load. Reopen this window to retry.',
-          );
+        if (!cancelled) setStatus('The 3D scene could not load. Reopen this window to retry.');
       });
     return () => {
       cancelled = true;
@@ -65,8 +62,8 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
     <div className="fly-habitat">
       <header className="habitat-header">
         <div>
-          <span>ONE FLY / LIVE OBSERVATION</span>
-          <h2>A closer look.</h2>
+          <span>ONE FLY / A VERY SMALL TRADING DESK</span>
+          <h2>Meet your trader.</h2>
         </div>
         <div className="habitat-controls">
           <button aria-pressed={!motion} onClick={() => setMotion(!motion)}>
@@ -140,21 +137,10 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
         </span>
       </div>
       <footer>
-        Body adapted from DesktopFly. The movements illustrate recorded
-        activity, not a biological motor simulation. BUY/SELL show intents; only
-        a broker-confirmed fill gets the fill animation. Preview and motion
-        controls never place orders or resume trading.{' '}
-        <a
-          href="https://github.com/DenisSergeevitch/desktop-fly"
-          target="_blank"
-          rel="noreferrer"
-        >
-          DesktopFly
-        </a>{' '}
-        ·{' '}
-        <a href="/desktopfly-license.txt" target="_blank" rel="noreferrer">
-          MIT license
-        </a>
+        Stylized activity avatar. The body movements are illustrative, not a
+        biological motor simulation. BUY/SELL show intents; only a
+        broker-confirmed fill gets the fill animation. Preview and motion
+        controls never place orders or resume trading.
       </footer>
     </div>
   );
