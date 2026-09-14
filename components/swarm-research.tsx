@@ -755,8 +755,12 @@ export function SwarmResearch() {
         >
           FlySwarm
         </a>{' '}
-        · MIT © 2026 Gyomei. Research state is saved on your private site.
-        Scenario playback pauses when this window is closed.
+        ·{' '}
+        <a href="/flyswarm-license.txt" target="_blank" rel="noreferrer">
+          MIT © 2026 Gyomei
+        </a>
+        . Research state is saved on your private site. Scenario playback pauses
+        when this window is closed.
       </footer>
     </div>
   );
