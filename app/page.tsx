@@ -252,6 +252,25 @@ export default function Desktop() {
     setEvidenceTarget({ decisionId, nonce: Date.now() });
     open('evidence');
   }
+  function windowStatus(id: AppId) {
+    if (id === 'swarm')
+      return 'Swarm research · live explorer / prototype signals';
+    if (mode === 'demo' && !['evidence', 'habitat', 'log'].includes(id))
+      return 'Synthetic demo · simulated trades';
+    const snapshot = backend.data.snapshot;
+    if (!snapshot) return 'Alpaca paper · waiting for worker telemetry';
+    if (backend.stale) return 'Alpaca paper · telemetry stale';
+    if (!snapshot.broker.connected) return 'Alpaca paper · broker disconnected';
+    const brain = snapshot.brain.loaded
+      ? 'fly brain loaded'
+      : 'fly brain not loaded';
+    const state = snapshot.paused
+      ? 'paused'
+      : !snapshot.market.is_open
+        ? 'market closed'
+        : 'running';
+    return `Alpaca paper connected · ${brain} · ${state}`;
+  }
   function content(id: AppId): ReactNode {
     if (id === 'evidence')
       return <EvidenceDesk backend={backend} target={evidenceTarget} />;
@@ -340,6 +359,7 @@ export default function Desktop() {
             <DesktopWindow
               key={w.id}
               win={w}
+              status={windowStatus(w.id)}
               focus={() => update(w.id, { z: ++top.current })}
               update={(changes) => update(w.id, changes)}
               close={() => setWindows((ws) => ws.filter((v) => v.id !== w.id))}
@@ -408,12 +428,14 @@ export default function Desktop() {
 }
 function DesktopWindow({
   win,
+  status,
   focus,
   update,
   close,
   children,
 }: {
   win: Win;
+  status: string;
   focus: () => void;
   update: (p: Partial<Win>) => void;
   close: () => void;
@@ -625,9 +647,8 @@ function DesktopWindow({
         </div>
         <div className="window-body">{children}</div>
         <div className="window-status">
-          <span>
-            <FlaskConical size={12} /> Synthetic demo · no fly or broker
-            connected
+          <span title={status}>
+            <FlaskConical size={12} /> {status}
           </span>
           <span>TF / {win.id.toUpperCase()}</span>
         </div>
