@@ -2466,6 +2466,158 @@ body > div:has(> [data-slot='popover-content']) {
 .neural-meter { height:5px;border-radius:3px;overflow:hidden;background:#dfdbe9; }
 .neural-meter i { display:block;height:100%;background:#8774b6;border-radius:3px; }
 .neural-footnote { border-top:1px solid #d8d5e3;padding-top:14px;margin-top:18px; }
+.brain-model-stage {
+  height: clamp(320px, 52vh, 560px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #33285b;
+  border-radius: 5px;
+  background: #100d27;
+}
+.brain-model-canvas {
+  position: absolute;
+  inset: 0;
+}
+.brain-model-canvas canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.brain-model-heading {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  right: 20px;
+  display: grid;
+  gap: 5px;
+  color: #ece7ff;
+  pointer-events: none;
+}
+.brain-model-heading > span {
+  color: #a39bbb;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+}
+.brain-model-heading strong {
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.brain-model-heading small {
+  font-size: 0.8125rem;
+  color: #b7afca;
+}
+.brain-model-help {
+  position: absolute;
+  bottom: 14px;
+  left: 20px;
+  color: #aaa2c2;
+  font-size: 0.8125rem;
+  pointer-events: none;
+}
+.brain-model-loading {
+  position: absolute;
+  inset: 40% 20px auto;
+  text-align: center;
+  color: #d0c8e7;
+}
+.brain-neuron-pick {
+  position: absolute;
+  bottom: 44px;
+  right: 16px;
+  background: #241b42eb;
+  border: 1px solid #695780;
+  border-radius: 4px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  color: #e7dff8;
+  pointer-events: none;
+  max-width: calc(100% - 32px);
+}
+.brain-neuron-pick span {
+  color: #b8a6d1;
+  font-size: 0.8125rem;
+}
+.brain-neuron-pick code {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.brain-neuron-pick strong {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.brain-model-controls {
+  justify-content: flex-start;
+  margin: 12px 0;
+}
+.brain-model-controls select {
+  border: 1px solid #d1cddb;
+  background: #f5f4fa;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  padding: 6px 30px 6px 8px;
+  height: 34px;
+}
+.brain-model-controls > span {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: #727084;
+}
+.brain-attribution {
+  font-size: 0.8125rem;
+  color: #727084;
+  margin: 10px 0;
+}
+.brain-attribution summary,
+.neural-chart-details > summary {
+  cursor: pointer;
+}
+.brain-attribution a {
+  text-decoration: underline;
+}
+.neural-chart-details {
+  margin-top: 20px;
+  border-top: 1px solid #d8d5e3;
+  padding-top: 12px;
+}
+.neural-chart-details > summary {
+  margin-bottom: 14px;
+  font-size: 0.875rem;
+  color: #514078;
+}
+.graph-hover-readout {
+  min-height: 42px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 4px 14px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border: 1px solid #d8d5e3;
+  background: #ece9f4;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: #625778;
+  font-variant-numeric: tabular-nums;
+}
+.graph-hover-readout b {
+  font-weight: 500;
+  color: #3f3654;
+}
+.paper-equity svg,
+.comparison-chart svg,
+.neural-trace svg {
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+.paper-equity svg:focus-visible,
+.comparison-chart svg:focus-visible,
+.neural-trace svg:focus-visible {
+  outline: 2px solid #75629d;
+  outline-offset: 2px;
+}
 @container neural (max-width: 640px) {
   .neural-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .neural-metrics > div { border-bottom:1px solid #d8d5e3; }

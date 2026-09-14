@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { BrainModel } from './brain-model';
+import { useChartCursor } from './chart-cursor';
 import { Activity, Radio, ScanLine } from 'lucide-react';
 import {
   NativeSelect,
@@ -44,6 +46,7 @@ function Trace({
   }[];
   threshold?: number;
 }) {
+  const cursor = useChartCursor(records.length, 440, 46, 368);
   const top =
     Math.max(
       1,
@@ -53,7 +56,7 @@ function Trace({
   const x = (i: number) =>
     records.length === 1 ? 230 : 46 + (i * 368) / (records.length - 1);
   const y = (n: number) => 150 - (n / top) * 120;
-  const chosen = records.findIndex((d) => d.id === selected);
+  const chosen = cursor.index ?? records.findIndex((d) => d.id === selected);
   return (
     <figure className="neural-trace">
       <figcaption>
@@ -61,9 +64,10 @@ function Trace({
         <span>{unit}</span>
       </figcaption>
       <svg
+        {...cursor.props}
         viewBox="0 0 440 182"
         role="img"
-        aria-label={`${title} across ${records.length} recorded decisions, oldest to newest`}
+        aria-label={`${title} across ${records.length} decisions. Hover, tap, or use left and right arrow keys for values.`}
       >
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
@@ -131,6 +135,22 @@ function Trace({
           Latest
         </text>
       </svg>
+      <div className="graph-hover-readout" aria-live="polite">
+        {chosen >= 0 && records[chosen] ? (
+          <>
+            <b>
+              {records[chosen].symbol} · {when(records[chosen].created_at)}
+            </b>
+            {series.map((s) => (
+              <span key={s.label}>
+                {s.label}: {number(s.value(records[chosen]))} {unit}
+              </span>
+            ))}
+          </>
+        ) : (
+          'Hover or tap to inspect values'
+        )}
+      </div>
       <div className="neural-legend">
         {series.map((s) => (
           <span key={s.label}>
@@ -152,6 +172,15 @@ export function BrainActivity({
   onTrace: (id: string) => void;
 }) {
   const [pinned, setPinned] = useState<PaperDecision | null>(null);
+  const [validation, setValidation] = useState<PaperDecision | null>(null);
+  useEffect(() => {
+    const abort = new AbortController();
+    fetch('/brain/validation-replay.json', { signal: abort.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((value) => setValidation(value as PaperDecision | null))
+      .catch(() => {});
+    return () => abort.abort();
+  }, []);
   const snapshot = backend.data.snapshot;
   const history = snapshot?.decisions ?? [];
   const recent = history.slice(-60);
@@ -170,6 +199,20 @@ export function BrainActivity({
           Recorded firing rates and activity will appear after a stock is
           evaluated.
         </p>
+        <div className="paper-actions">
+          <button disabled={!validation} onClick={() => setPinned(validation)}>
+            Validation replay
+          </button>
+        </div>
+        <BrainModel
+          activity={pinned?.neural.activity}
+          recordId={pinned?.id ?? 'anatomy'}
+          label={
+            pinned
+              ? 'Controlled validation replay · no orders'
+              : 'Anatomy · waiting for recordings'
+          }
+        />
       </div>
     );
   const n = d.neural;
@@ -213,12 +256,16 @@ export function BrainActivity({
             <Activity size={22} strokeWidth={1.5} /> Brain activity
           </h2>
           <span className="neural-status">
-            {state} · last reading {history.length ? when(history.at(-1)!.created_at) : 'unavailable'}
+            {state} · last reading{' '}
+            {history.length ? when(history.at(-1)!.created_at) : 'unavailable'}
           </span>
         </div>
         <div className="paper-actions">
           <button onClick={() => setPinned(null)} disabled={!pinned}>
             <Radio size={14} /> Follow latest
+          </button>
+          <button disabled={!validation} onClick={() => setPinned(validation)}>
+            Validation replay
           </button>
           <button onClick={() => onTrace(d.id)} disabled={!inHistory}>
             <ScanLine size={14} /> Inspect decision
@@ -239,7 +286,8 @@ export function BrainActivity({
           >
             {!inHistory && (
               <NativeSelectOption value={d.id}>
-                {d.symbol} · {when(d.created_at)} · pinned
+                {d.symbol} · {when(d.created_at)} ·{' '}
+                {d.id === validation?.id ? 'validation replay' : 'pinned'}
               </NativeSelectOption>
             )}
             {[...history].reverse().map((r) => (
@@ -252,175 +300,196 @@ export function BrainActivity({
         <span>
           {pinned ? 'Pinned reading' : 'Following latest'}
           <strong>
-            {d.symbol} · {d.action}
+            {d.id === validation?.id
+              ? 'Controlled test · no orders'
+              : `${d.symbol} · ${d.action}`}
           </strong>
         </span>
       </div>
-      <div className="neural-metrics">
-        <div>
-          <span>Active neurons</span>
-          <strong>{number(n.active_neurons)}</strong>
-          <small>
-            {neurons
-              ? `${((n.active_neurons / neurons) * 100).toFixed(2)}% of ${number(neurons)}`
-              : 'Network count unavailable'}{' '}
-            · last {n.readout_ms} ms
-          </small>
-        </div>
-        <div>
-          <span>Network spikes</span>
-          <strong>{number(n.spikes)}</strong>
-          <small>Total across the {n.window_ms} ms simulation</small>
-        </div>
-        <div>
-          <span>Buy / sell firing</span>
-          <strong>
-            {number(n.buy_hz)} / {number(n.sell_hz)} <em>Hz</em>
-          </strong>
-          <small>Mean rate per output neuron · last {n.readout_ms} ms</small>
-        </div>
-        <div>
-          <span>Calculation time</span>
-          <strong>
-            {number(n.wall_seconds)} <em>s</em>
-          </strong>
-          <small>Real time to simulate {n.window_ms} ms</small>
-        </div>
-      </div>
-      <div className="neural-charts">
-        <Trace
-          records={recent}
-          selected={d.id}
-          title="Trading signals"
-          unit="Hz"
-          threshold={threshold}
-          series={[
-            {
-              label: 'Buy pool',
-              color: '#6552a3',
-              value: (r) => r.neural.buy_hz,
-            },
-            {
-              label: 'Sell pool',
-              color: '#b16b88',
-              value: (r) => r.neural.sell_hz,
-            },
-          ]}
-        />
-        <Trace
-          records={recent}
-          selected={d.id}
-          title="Network participation"
-          unit="neurons"
-          series={[
-            {
-              label: 'Neurons that fired',
-              color: '#557f8f',
-              value: (r) => r.neural.active_neurons,
-            },
-          ]}
-        />
-      </div>
-      <p className="neural-caption">
-        Latest {recent.length} calculations. Each step is one evaluated stock,
-        with unequal time between steps.{' '}
-        {threshold !== undefined && margin !== undefined
-          ? `A trade signal needs at least ${threshold} Hz and a ${margin} Hz lead.`
-          : 'Threshold settings are unavailable.'}
-      </p>
-      <section className="neural-panel">
-        <div className="neural-section-title">
-          <h3>Output neuron activity</h3>
-          <span>Quiet → {number(peak)} Hz</span>
-        </div>
-        <div
-          className="neural-raster"
-          role="group"
-          aria-label="Output neuron firing rates by calculation. Select a column to inspect it."
-        >
-          <div className="neural-raster-labels">
-            {outputRows.map((r) => (
-              <span key={r.id} title={`FlyWire neuron ${r.id}`}>
-                {r.label}
-              </span>
-            ))}
+      <BrainModel
+        activity={d.neural.activity}
+        recordId={d.id}
+        label={
+          d.id === validation?.id
+            ? 'Controlled validation replay'
+            : `${d.symbol} · ${when(d.created_at)}`
+        }
+      />
+      {d.id === validation?.id && (
+        <p className="neural-caption">
+          Recorded during an isolated test of the saved brain state with fixed
+          input rates. This was not a market decision and placed no orders.
+        </p>
+      )}
+      <details className="neural-chart-details">
+        <summary>Signal charts &amp; calculation details</summary>
+        <div className="neural-metrics">
+          <div>
+            <span>Active neurons</span>
+            <strong>{number(n.active_neurons)}</strong>
+            <small>
+              {neurons
+                ? `${((n.active_neurons / neurons) * 100).toFixed(2)}% of ${number(neurons)}`
+                : 'Network count unavailable'}{' '}
+              · last {n.readout_ms} ms
+            </small>
           </div>
-          <div className="neural-raster-columns">
-            {recent.map((r) => (
-              <button
-                key={r.id}
-                aria-pressed={r.id === d.id}
-                aria-label={`${r.symbol}, ${when(r.created_at)}, ${r.action}. ${outputRows.map((o) => `${o.label}: ${r.neural.output_neurons[o.pool]?.find((v) => v.id === o.id)?.hz ?? 'unavailable'} Hz`).join('. ')}`}
-                title={`${r.symbol} · ${when(r.created_at)} · ${r.action}`}
-                onClick={() => setPinned(r)}
-              >
-                {outputRows.map((o) => {
-                  const hz = r.neural.output_neurons[o.pool]?.find(
-                    (v) => v.id === o.id,
-                  )?.hz;
-                  return (
-                    <span
-                      key={o.id}
-                      style={{
-                        background:
-                          hz === undefined
-                            ? 'repeating-linear-gradient(45deg,#dedbe6 0 2px,transparent 2px 4px)'
-                            : `rgba(101,82,163,${hz === 0 ? 0.06 : 0.2 + (0.8 * hz) / peak})`,
-                      }}
-                    />
-                  );
-                })}
-              </button>
-            ))}
+          <div>
+            <span>Network spikes</span>
+            <strong>{number(n.spikes)}</strong>
+            <small>Total across the {n.window_ms} ms simulation</small>
           </div>
+          <div>
+            <span>Buy / sell firing</span>
+            <strong>
+              {number(n.buy_hz)} / {number(n.sell_hz)} <em>Hz</em>
+            </strong>
+            <small>Mean rate per output neuron · last {n.readout_ms} ms</small>
+          </div>
+          <div>
+            <span>Calculation time</span>
+            <strong>
+              {number(n.wall_seconds)} <em>s</em>
+            </strong>
+            <small>Real time to simulate {n.window_ms} ms</small>
+          </div>
+        </div>
+        <div className="neural-charts">
+          <Trace
+            records={recent}
+            selected={d.id}
+            title="Trading signals"
+            unit="Hz"
+            threshold={threshold}
+            series={[
+              {
+                label: 'Buy pool',
+                color: '#6552a3',
+                value: (r) => r.neural.buy_hz,
+              },
+              {
+                label: 'Sell pool',
+                color: '#b16b88',
+                value: (r) => r.neural.sell_hz,
+              },
+            ]}
+          />
+          <Trace
+            records={recent}
+            selected={d.id}
+            title="Network participation"
+            unit="neurons"
+            series={[
+              {
+                label: 'Neurons that fired',
+                color: '#557f8f',
+                value: (r) => r.neural.active_neurons,
+              },
+            ]}
+          />
         </div>
         <p className="neural-caption">
-          Each cell is a measured firing rate over that record’s readout window.
-          Click a column to inspect it. Pale cells mean no spikes; striped cells
-          mean missing data.
+          Latest {recent.length} calculations. Each step is one evaluated stock,
+          with unequal time between steps.{' '}
+          {threshold !== undefined && margin !== undefined
+            ? `A trade signal needs at least ${threshold} Hz and a ${margin} Hz lead.`
+            : 'Threshold settings are unavailable.'}
         </p>
-        <div className="neural-outputs">
-          {outputRows.map((o) => (
-            <div key={o.id}>
-              <span>{o.label}</span>
-              <strong>
-                {number(o.hz)} Hz <small>· {o.spikes} spikes</small>
-              </strong>
-              <code>{o.id}</code>
+        <section className="neural-panel">
+          <div className="neural-section-title">
+            <h3>Output neuron activity</h3>
+            <span>Quiet → {number(peak)} Hz</span>
+          </div>
+          <div
+            className="neural-raster"
+            role="group"
+            aria-label="Output neuron firing rates by calculation. Select a column to inspect it."
+          >
+            <div className="neural-raster-labels">
+              {outputRows.map((r) => (
+                <span key={r.id} title={`FlyWire neuron ${r.id}`}>
+                  {r.label}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
-      <section className="neural-panel">
-        <div className="neural-section-title">
-          <h3>Sensory input</h3>
-          <span>{d.symbol} · stimulus rates</span>
-        </div>
-        <div className="neural-inputs">
-          {Object.entries(d.stimulus_hz).map(([key, hz]) => (
-            <div key={key}>
-              <span>
-                {inputs[key] ?? key}
-                <b>{number(hz)} Hz</b>
-              </span>
-              <div className="neural-meter" aria-hidden="true">
-                <i style={{ width: `${(hz / inputPeak) * 100}%` }} />
+            <div className="neural-raster-columns">
+              {recent.map((r) => (
+                <button
+                  key={r.id}
+                  aria-pressed={r.id === d.id}
+                  aria-label={`${r.symbol}, ${when(r.created_at)}, ${r.action}. ${outputRows.map((o) => `${o.label}: ${r.neural.output_neurons[o.pool]?.find((v) => v.id === o.id)?.hz ?? 'unavailable'} Hz`).join('. ')}`}
+                  title={`${r.symbol} · ${when(r.created_at)} · ${r.action}`}
+                  onClick={() => setPinned(r)}
+                >
+                  {outputRows.map((o) => {
+                    const hz = r.neural.output_neurons[o.pool]?.find(
+                      (v) => v.id === o.id,
+                    )?.hz;
+                    return (
+                      <span
+                        key={o.id}
+                        style={{
+                          background:
+                            hz === undefined
+                              ? 'repeating-linear-gradient(45deg,#dedbe6 0 2px,transparent 2px 4px)'
+                              : `rgba(101,82,163,${hz === 0 ? 0.06 : 0.2 + (0.8 * hz) / peak})`,
+                        }}
+                      />
+                    );
+                  })}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="neural-caption">
+            Each cell is a measured firing rate over that record’s readout
+            window. Click a column to inspect it. Pale cells mean no spikes;
+            striped cells mean missing data.
+          </p>
+          <div className="neural-outputs">
+            {outputRows.map((o) => (
+              <div key={o.id}>
+                <span>{o.label}</span>
+                <strong>
+                  {number(o.hz)} Hz <small>· {o.spikes} spikes</small>
+                </strong>
+                <code>{o.id}</code>
               </div>
-            </div>
-          ))}
-        </div>
-        <p className="neural-caption">
-          Market values are encoded into stimulation rates by this experiment.
-          BUY and SELL are human-assigned output labels.
-        </p>
-      </section>
-      <footer className="neural-footnote">
-        Readings update after each completed calculation. Network totals cover
-        the simulated brain; the heatmap shows only the {outputRows.length}{' '}
-        recorded output neurons. Individual spike timestamps and anatomical
-        locations are not recorded here. History is limited to the desktop’s
-        latest {history.length} records (up to 100).
-      </footer>
+            ))}
+          </div>
+        </section>
+        <section className="neural-panel">
+          <div className="neural-section-title">
+            <h3>Sensory input</h3>
+            <span>{d.symbol} · stimulus rates</span>
+          </div>
+          <div className="neural-inputs">
+            {Object.entries(d.stimulus_hz).map(([key, hz]) => (
+              <div key={key}>
+                <span>
+                  {inputs[key] ?? key}
+                  <b>{number(hz)} Hz</b>
+                </span>
+                <div className="neural-meter" aria-hidden="true">
+                  <i style={{ width: `${(hz / inputPeak) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="neural-caption">
+            Market values are encoded into stimulation rates by this experiment.
+            BUY and SELL are human-assigned output labels.
+          </p>
+        </section>
+        <footer className="neural-footnote">
+          Readings update after each completed calculation. Network totals cover
+          the simulated brain; the heatmap shows only the {outputRows.length}{' '}
+          recorded output neurons. Spike replays are included for the latest
+          recordings (up to three); older decisions retain their aggregate
+          readings. History is limited to the desktop’s latest {history.length}{' '}
+          records (up to 100).
+        </footer>
+      </details>
     </div>
   );
 }

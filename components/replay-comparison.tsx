@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import type { BackendSnapshot } from '@/lib/backend';
 import { comparePilot, type Trial } from '@/lib/replay-comparison';
+import { useChartCursor } from './chart-cursor';
 const money = (n: number) =>
   n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 export function ReplayComparison({
@@ -19,6 +20,7 @@ export function ReplayComparison({
       };
     }
   }, [pilot]);
+  const cursor = useChartCursor(result.data?.bars ?? 0, 740, 40, 640);
   if (!result.data || !pilot)
     return <p className="evidence-empty">{result.error}</p>;
   const r = result.data,
@@ -87,6 +89,7 @@ export function ReplayComparison({
       </p>
       <figure className="comparison-chart">
         <svg
+          {...cursor.props}
           viewBox="0 0 740 270"
           role="img"
           aria-label="Pilot equity curves: fly, cash, buy and hold, and 30 random-action controls"
@@ -111,7 +114,42 @@ export function ReplayComparison({
               className={`comparison-line comparison-${i}`}
             />
           ))}
+          {cursor.index !== null && (
+            <line
+              x1={40 + (cursor.index / Math.max(1, r.bars - 1)) * 640}
+              x2={40 + (cursor.index / Math.max(1, r.bars - 1)) * 640}
+              y1="30"
+              y2="230"
+              className="crosshair"
+            />
+          )}
         </svg>
+        <div className="graph-hover-readout" aria-live="polite">
+          {cursor.index === null ? (
+            'Hover or tap to compare policies at a bar'
+          ) : (
+            <>
+              <b>
+                Bar {cursor.index + 1} of {r.bars}
+              </b>
+              {rows.map((t) => (
+                <span key={t.name}>
+                  {t.name}: {money(t.equity[cursor.index!])}
+                </span>
+              ))}
+              <span>
+                Random range:{' '}
+                {money(
+                  Math.min(...r.random.map((t) => t.equity[cursor.index!])),
+                )}{' '}
+                –{' '}
+                {money(
+                  Math.max(...r.random.map((t) => t.equity[cursor.index!])),
+                )}
+              </span>
+            </>
+          )}
+        </div>
         <figcaption>
           Indigo: recorded fly · dashed gray: cash · teal: buy-and-hold · faint
           lines: random actions. All end at the last bar's close.

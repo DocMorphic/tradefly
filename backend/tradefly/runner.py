@@ -11,6 +11,7 @@ from .alpaca import BrokerError
 from .config import ROOT, SITE_URL, Settings
 from .domain import now_iso, instant, UTC
 from .market import MarketEngine
+from .neural_activity import instrument, bounded_activity_snapshot
 from datetime import datetime
 
 class Bridge:
@@ -23,7 +24,7 @@ class Bridge:
         token=self.config.get('TRADEFLY_BRIDGE_TOKEN')
         bypass=self.config.get('TRADEFLY_SITES_TOKEN')
         if not token or not bypass: return False
-        response=self.client.post(SITE_URL+'/api/bridge',json=self.engine.snapshot(),headers={
+        response=self.client.post(SITE_URL+'/api/bridge',json=bounded_activity_snapshot(self.engine.snapshot()),headers={
             'Authorization':'Bearer '+token,'OAI-Sites-Authorization':'Bearer '+bypass})
         if response.status_code!=200: return False
         command=response.json()
@@ -73,6 +74,7 @@ def main():
             if checkpoint.exists() and not engine.fatal:
                 engine.brain.restore(checkpoint)
                 engine.brain.steps=engine.ledger.get('brain_steps') or 0
+            instrument(engine.brain)
             print('Full brain loaded. Paper execution remains paused.',flush=True)
         else: print('Brain validation has not passed; monitoring only.',flush=True)
     bridge=Bridge(engine)
@@ -94,7 +96,7 @@ def main():
             engine.pause(reason)
         except Exception:
             engine.connected=False;engine.pause('Backend error; execution paused')
-        snapshot=engine.snapshot()
+        snapshot=bounded_activity_snapshot(engine.snapshot())
         temporary=settings.database.parent/'status.tmp'
         temporary.write_text(json.dumps(snapshot))
         temporary.replace(settings.database.parent/'status.json')

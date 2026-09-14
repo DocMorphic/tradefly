@@ -1,3 +1,14 @@
+export type NeuralActivity = {
+  schema: number;
+  duration_ms: number;
+  total_spikes: number;
+  recorded_events: number;
+  displayed_events: number;
+  sampled: boolean;
+  neuron_ids: string[];
+  events: [number, number][];
+  recorder_hash: string;
+};
 export type PaperDecision = {
   symbol?: string;
   id: string;
@@ -8,6 +19,7 @@ export type PaperDecision = {
   feed: string;
   stimulus_hz: Record<string, number>;
   neural: {
+    activity?: NeuralActivity;
     buy_hz: number;
     sell_hz: number;
     spikes: number;

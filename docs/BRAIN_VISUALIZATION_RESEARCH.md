@@ -31,3 +31,15 @@ The existing per-neuron readout count vector could support a real spatial activi
 5. Limit visual samples if needed for performance, but keep aggregate counts accurate and expose sampled/unmapped coverage. Pause visual playback independently of trading; support reduced motion and dispose GPU resources when the window closes.
 
 This would replace the primary charts with the anatomical view the user described. A future implementation needs coordinate validation and additional backend telemetry; a cosmetic point cloud with random flashes would not satisfy the request.
+
+## Implemented anatomical replay (2026-09-15)
+
+The primary view now renders 138,639 neuron locations in Three.js, joined by original FlyWire root ID to the exact v783 model. All model IDs matched; none were invented. `scripts/prepare-brain-geometry.py` reproduces the compact coordinate file from the published coordinates and classification tables. The generated file records source URLs, SHA-256 checksums, source units and the normalization transform. These are annotation locations, not neuron skeletons or asserted soma positions. Dataset attribution is visible in the viewer.
+
+`backend/tradefly/neural_activity.py` temporarily attaches a passive spike monitor for each existing calculation. It records neuron IDs and actual simulation timestamps, then removes itself before checkpointing. The original brain implementation and model hash remain unchanged. At most 4,000 evenly sampled events are sent per calculation; the viewer reports full recorded and visible counts. Each locally saved decision retains that bounded replay. Desktop snapshots include up to three replays within a 200 KB additional-data budget and 850 KB total payload target; older decisions retain aggregate readings.
+
+Drag rotates, wheel zooms, and a click selects a neuron without stimulating it. Replay pause, speed and scrubbing act only on the visualization. A visible glow lasts 45 simulation milliseconds to make spikes readable; it does not depict the biological duration of an action potential. Reduced-motion settings disable automatic playback. Old decisions without timestamp records show anatomy only. A separately labeled controlled validation replay is available before any new trading calculations occur.
+
+`uv run python scripts/check-neural-activity.py` restored the same checkpoint before baseline and recorded calculations, with identical fixed inputs. Both produced exactly equal per-neuron spike counts and membrane voltages. The recorded calculation captured all 8,204 spike events; the display retained 4,000. Temporary-monitor checkpoint save/restore also passed. This check used no broker and placed no orders. Warm-run wall times were 9.53 s baseline and 5.86 s observed; timing varies with compilation and machine load, so this is compatibility evidence, not a speedup claim.
+
+Account equity, pilot comparison and neural traces now have pointer/touch inspection and keyboard navigation (arrows, Home/End, Escape), with time/bar positions and exact series values. Local browser verification used a temporary fixture route that is removed before publishing.

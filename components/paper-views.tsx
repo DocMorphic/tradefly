@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Download, Pause, Play, RefreshCw } from 'lucide-react';
 import { HoldingsTable } from './holdings-table';
+import { useChartCursor } from './chart-cursor';
 import type {
   BackendResponse,
   BackendSnapshot,
@@ -272,6 +273,7 @@ export function Decision({ d }: { d: PaperDecision }) {
 }
 function EquityHistory({ s }: { s: BackendSnapshot }) {
   const samples = s.equity_history ?? [];
+  const cursor = useChartCursor(samples.length, 730, 70, 630);
   if (samples.length < 2) return null;
   const values = samples.map((p) => Number(p.equity));
   const lo = Math.min(...values),
@@ -289,8 +291,9 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
         Observed account equity · USD · latest {samples.length} samples
       </figcaption>
       <svg
+        {...cursor.props}
         viewBox="0 0 730 170"
-        aria-label={`Account equity from ${usd(values[0])} to ${usd(values.at(-1))}`}
+        aria-label={`Account equity from ${usd(values[0])} to ${usd(values.at(-1))}. Hover, tap, or use arrow keys to inspect.`}
       >
         <text x="0" y="25">
           {usd(hi + pad)}
@@ -305,6 +308,26 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
           stroke="#6b5a9a"
           strokeWidth="2"
         />
+        {cursor.index !== null && (
+          <g>
+            <line
+              x1={70 + (cursor.index / (values.length - 1)) * 630}
+              x2={70 + (cursor.index / (values.length - 1)) * 630}
+              y1="20"
+              y2="130"
+              className="crosshair"
+            />
+            <circle
+              cx={70 + (cursor.index / (values.length - 1)) * 630}
+              cy={
+                130 -
+                ((values[cursor.index] - lo + pad) / (hi - lo + 2 * pad)) * 110
+              }
+              r="4"
+              fill="#6b5a9a"
+            />
+          </g>
+        )}
         <text x="70" y="158">
           {time(samples[0].at)}
         </text>
@@ -312,6 +335,21 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
           {time(samples.at(-1)?.at)}
         </text>
       </svg>
+      <div className="graph-hover-readout" aria-live="polite">
+        {cursor.index === null ? (
+          'Hover or tap to inspect account equity'
+        ) : (
+          <>
+            <b>{time(samples[cursor.index].at)}</b>
+            <span>Equity {usd(samples[cursor.index].equity)}</span>
+            <span>Cash {usd(samples[cursor.index].cash)}</span>
+            <span>
+              Change from first sample{' '}
+              {usd(Number(samples[cursor.index].equity) - values[0])}
+            </span>
+          </>
+        )}
+      </div>
     </figure>
   );
 }
