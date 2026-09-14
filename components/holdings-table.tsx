@@ -69,13 +69,18 @@ export function HoldingsTable({ snapshot }: { snapshot: BackendSnapshot }) {
           {rows.length} of {snapshot.positions.length} positions
         </span>
       </div>
-      <div className="holdings-filters">
+      <div
+        className="holdings-filters"
+        role="region"
+        aria-label="Holdings filters, scroll horizontally in narrow windows"
+        tabIndex={0}
+      >
         <label>
-          Find symbol
+          Symbol
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. AAPL"
+            placeholder="Find…"
           />
         </label>
         <label>

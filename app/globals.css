@@ -2344,10 +2344,54 @@ body > div:has(> [data-slot='popover-content']) {
 
 .holdings-heading { display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap; }
 .holdings-heading span,.holdings-note { color:#777386;font-size:13px; }
-.holdings-filters { display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px; }
-.holdings-filters label { display:flex;flex-direction:column;gap:5px;font-size:13px;color:#625b76; }
-.holdings-filters input { height:34px;max-width:215px;min-width:120px;font-size:14px; }
-.holdings-filters button { padding:6px 10px;border:1px solid #c7bfd7;border-radius:5px;background:#f1edf7; }
+.holdings-filters {
+  display: grid;
+  grid-template-columns: 6rem minmax(8rem, 1fr) 7.25rem 7.25rem 12.75rem 12.75rem max-content;
+  align-items: end;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c1bcd2 transparent;
+  padding: 3px 2px 8px;
+  margin: 0 -2px 6px;
+}
+.holdings-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #727084;
+  white-space: nowrap;
+}
+.holdings-filters [data-slot="native-select-wrapper"] { width: 100%; min-width: 0; }
+.holdings-filters input,
+.holdings-filters select,
+.holdings-filters button {
+  box-sizing: border-box;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid #d1cddb;
+  border-radius: 4px;
+  background: #f5f4fa;
+  color: #29283d;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  box-shadow: none;
+}
+.holdings-filters input { width: 100%; padding: 6px 8px; }
+.holdings-filters input::placeholder { color: #898497; }
+.holdings-filters select { padding: 6px 28px 6px 8px; }
+.holdings-filters button { padding: 6px 10px; cursor: pointer; }
+.holdings-filters select:hover,
+.holdings-filters button:hover { background: #eceaf3; border-color: #b9b2cb; }
+.holdings-filters input:focus-visible,
+.holdings-filters select:focus-visible,
+.holdings-filters button:focus-visible { outline: 2px solid #75629d; outline-offset: 1px; }
 .holdings-scroll { overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable; }
 .holdings-scroll table { width:100%;border-collapse:separate;border-spacing:0; }
 .holdings-scroll thead th { position:sticky;top:0;background:#eceaf3;z-index:1;white-space:nowrap;border-bottom:1px solid #cbc4dc; }
