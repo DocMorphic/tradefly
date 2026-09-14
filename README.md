@@ -59,7 +59,7 @@ The separate Swarm research window adapts FlySwarm's token radar, holder sample,
 
 ### Fly habitat
 
-Open **Fly habitat** from the desktop to see a 3D activity avatar at its trading desk. Drag to orbit and scroll/pinch to zoom. It follows paper-worker telemetry, distinguishes order intents from broker-confirmed fills, and shows the latest measured BUY/SELL firing rates. Preview buttons animate sample states without placing orders or resuming trading. Motion can be paused and respects reduced-motion preferences. The stylized movements are illustrative, not biological motor outputs. Three.js license: `public/three-license.txt`.
+Open **Fly habitat** from the desktop to see an articulated fruit fly adapted from DesktopFly. Drag to orbit and scroll/pinch to zoom. It follows paper-worker telemetry, distinguishes order intents from broker-confirmed fills, and shows the latest measured BUY/SELL firing rates. Preview buttons animate sample states without placing orders or resuming trading. Motion can be paused and respects reduced-motion preferences. The stylized movements are illustrative, not biological motor outputs. Body provenance: `docs/FLY_HABITAT.md`. Licenses: `public/desktopfly-license.txt` and `public/three-license.txt`.
 
 ### Evidence desk
 
