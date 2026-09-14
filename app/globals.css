@@ -313,6 +313,16 @@ small {
   height: calc(100% - 16px);
   resize: none;
 }
+@media (min-width: 800px) {
+  .app-window:not(.maximized):not(.snapped) {
+    --window-top: clamp(8px, var(--win-y), calc(100% - 80px));
+    --window-room: calc(100% - var(--window-top) - 8px);
+    top: var(--window-top);
+    height: min(720px, var(--window-room));
+    min-height: min(300px, var(--window-room));
+    max-height: var(--window-room);
+  }
+}
 .app-window.snapped {
   min-width: 0;
   min-height: 0;
