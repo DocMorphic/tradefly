@@ -2,7 +2,9 @@
 
 A paper-trading experiment in which a simulated fruit fly connectome is the sole source of directional trading decisions.
 
-**Status: interactive desktop demonstration implemented; fly engine and broker not connected.** The Indigo Grain desktop includes a decision inspector, replay, trade ledger, performance comparisons, and exports. All current prices and output-pool rates are synthetic fixtures, not measured fly activity. No credentials are needed to run it.
+**Status: real paper backend implemented and connected; starts paused.** The desktop has separate Paper and Demo modes. The Paper mode receives the real Alpaca account, measured full-network neural decisions, order outcomes, and audit records from a local Python worker. See [backend setup and operation](docs/BACKEND.md), [brain implementation](docs/BRAIN.md), and [validation evidence](docs/VALIDATION.md).
+
+Run the worker with `uv sync --python 3.12`, then `npm run backend`. Keep the Mac awake. Use Paper → Resume in the private desktop after readiness checks pass. No live-money endpoint exists.
 
 ## Run the desktop
 
@@ -36,7 +38,7 @@ The first version uses fixed neural weights. It does not learn from profits, und
 - Historical replay before real-time paper orders. Alpaca paper-only integration is the proposed second stage.
 - Local Python service; SQLite event ledger and Parquet input data. The browser desktop is implemented first, using synthetic data, at the user’s request.
 
-These remain the engine’s planned defaults. The desktop demonstration implements a separate synthetic paper ledger; no broker enforcement exists yet. See [the technical plan](docs/PLAN.md), [milestones](docs/ROADMAP.md), [user setup](docs/USER_SETUP.md), and [sources](docs/SOURCES.md).
+The real account balance comes from Alpaca rather than the demo bankroll. Execution enforces cash-only entry sizing and checks actual holdings; market fills may drift from the sizing reference price. The demo remains a separate synthetic ledger. See [the technical plan](docs/PLAN.md), [milestones](docs/ROADMAP.md), [user setup](docs/USER_SETUP.md), and [sources](docs/SOURCES.md).
 
 ## Files
 
@@ -46,7 +48,7 @@ These remain the engine’s planned defaults. The desktop demonstration implemen
 | `docs/ROADMAP.md` | Build order and completion criteria |
 | `docs/USER_SETUP.md` | Account setup and optional preferences |
 | `docs/SOURCES.md` | Research and API references |
-| `config/experiment.example.toml` | Proposed experiment settings, not executable yet |
-| `.env.example` | Names of future local credentials |
+| `config/experiment.example.toml` | Original planning settings; runtime uses frozen Python/manifest parameters |
+| `.env.example` | Local paper credential names |
 
 Large datasets, credentials, downloaded third-party code, and experiment output stay outside Git. Any reused code must retain its upstream license, and data licenses and attribution must be recorded independently.

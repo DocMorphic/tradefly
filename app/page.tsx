@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -53,6 +54,8 @@ const DEFAULT_WINDOW: Win = {
   maximized: false,
 };
 export default function Desktop() {
+  const backend = useBackend();
+  const [mode, setMode] = useState<'paper' | 'demo'>('paper');
   const [windows, setWindows] = useState<Win[]>([DEFAULT_WINDOW]);
   const top = useRef(1);
   const [cursor, setCursor] = useState(77),
@@ -131,6 +134,7 @@ export default function Desktop() {
         )
           throw new Error('bar must be an integer between 0 and 77');
         flushSync(() => {
+          setMode('demo');
           setCursor(bar);
           setSelected(bar);
           setPlaying(false);
@@ -209,6 +213,7 @@ export default function Desktop() {
     setPlaying((p) => !p);
   }
   function content(id: AppId): ReactNode {
+    if (mode === 'paper') return <PaperView id={id} backend={backend} />;
     return (
       <ExperimentView
         id={id}
@@ -237,7 +242,29 @@ export default function Desktop() {
           <button onClick={() => open('notes')}>Help</button>
         </nav>
         <div className="menu-right">
-          <span className="status-dot" /> DEMO MODE{' '}
+          <button
+            className={mode === 'paper' ? 'mode-active' : ''}
+            onClick={() => {
+              setMode('paper');
+              setPlaying(false);
+            }}
+          >
+            Paper
+          </button>
+          <button
+            className={mode === 'demo' ? 'mode-active' : ''}
+            onClick={() => setMode('demo')}
+          >
+            Demo
+          </button>
+          <span className="status-dot" />{' '}
+          {mode === 'demo'
+            ? 'DEMO'
+            : backend.stale
+              ? 'OFFLINE'
+              : backend.data.snapshot?.paused
+                ? 'PAUSED'
+                : 'RUNNING'}{' '}
           <span className="menubar-divider" /> AAPL · PAPER
         </div>
       </header>
@@ -291,35 +318,41 @@ export default function Desktop() {
             );
           })}
         </div>
-        <div className="replay">
-          <button
-            title="Restart demo replay"
-            aria-label="Restart demo replay"
-            onClick={reset}
-          >
-            <RotateCcw size={15} />
-          </button>
-          <button
-            title={playing ? 'Pause demo replay' : 'Play demo replay'}
-            aria-label={playing ? 'Pause demo replay' : 'Play demo replay'}
-            onClick={toggleReplay}
-          >
-            {playing ? <Pause size={15} /> : <Play size={15} />}
-          </button>
-          <Slider
-            className="replay-slider"
-            aria-label="Session replay position"
-            min={0}
-            max={77}
-            step={1}
-            value={[cursor]}
-            onValueChange={(value) => {
-              setPlaying(false);
-              setCursor(Array.isArray(value) ? value[0] : value);
-            }}
-          />
-          <span>{f.time} ET</span>
-        </div>
+        {mode === 'demo' ? (
+          <div className="replay">
+            <button
+              title="Restart demo replay"
+              aria-label="Restart demo replay"
+              onClick={reset}
+            >
+              <RotateCcw size={15} />
+            </button>
+            <button
+              title={playing ? 'Pause demo replay' : 'Play demo replay'}
+              aria-label={playing ? 'Pause demo replay' : 'Play demo replay'}
+              onClick={toggleReplay}
+            >
+              {playing ? <Pause size={15} /> : <Play size={15} />}
+            </button>
+            <Slider
+              className="replay-slider"
+              aria-label="Session replay position"
+              min={0}
+              max={77}
+              step={1}
+              value={[cursor]}
+              onValueChange={(value) => {
+                setPlaying(false);
+                setCursor(Array.isArray(value) ? value[0] : value);
+              }}
+            />
+            <span>{f.time} ET</span>
+          </div>
+        ) : (
+          <div className="paper-task-status">
+            {backend.data.snapshot?.message ?? 'Waiting for local backend'}
+          </div>
+        )}
       </footer>
     </main>
   );

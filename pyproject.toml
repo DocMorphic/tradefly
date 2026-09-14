@@ -1,0 +1,19 @@
+[project]
+name = "tradefly-backend"
+version = "0.2.0"
+description = "Connectome-only paper trading experiment and telemetry service"
+requires-python = ">=3.12,<3.13"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "python-dotenv>=1,<2", "numpy>=2,<3", "scipy>=1.15,<2", "pandas>=2.2,<3", "pyarrow>=19,<24", "brian2>=2.8,<3"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/tradefly"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]

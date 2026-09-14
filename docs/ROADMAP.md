@@ -5,7 +5,10 @@
 - [x] Create local planning repository and documented defaults.
 - [x] Confirm private GitHub remote and initial push: `DocMorphic/tradefly`.
 - [x] Build the Indigo Grain desktop and tested synthetic accounting demonstration.
-- [ ] Implement the fly engine, real market feed, and paper broker integration.
+- [x] Implement full v783 engine, real IEX data, paper adapter, persistent records, and private desktop telemetry.
+- [ ] Complete multi-seed held-out financial evaluation and observe an end-to-end paper-market session.
+
+Current implementation and exact limits: BACKEND.md, BRAIN.md, VALIDATION.md.
 
 ## 1 — Demonstrate the brain works
 

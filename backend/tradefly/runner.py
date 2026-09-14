@@ -1,0 +1,108 @@
+"""Run locally: uv run python -m tradefly.runner. Starts paused, never trades a backlog."""
+import argparse
+import fcntl
+import json
+import signal
+import time
+from pathlib import Path
+import httpx
+from dotenv import dotenv_values
+from .alpaca import BrokerError
+from .config import ROOT, SITE_URL, Settings
+from .domain import now_iso, instant, UTC
+from .engine import Engine
+from datetime import datetime
+
+class Bridge:
+    def __init__(self, engine):
+        self.engine=engine
+        self.config=dotenv_values(ROOT/'.env.bridge') if (ROOT/'.env.bridge').exists() else {}
+        self.client=httpx.Client(timeout=12,follow_redirects=False)
+        self.seen=None
+    def exchange(self):
+        token=self.config.get('TRADEFLY_BRIDGE_TOKEN')
+        bypass=self.config.get('TRADEFLY_SITES_TOKEN')
+        if not token or not bypass: return False
+        response=self.client.post(SITE_URL+'/api/bridge',json=self.engine.snapshot(),headers={
+            'Authorization':'Bearer '+token,'OAI-Sites-Authorization':'Bearer '+bypass})
+        if response.status_code!=200: return False
+        command=response.json()
+        # On startup acknowledge existing command, but never replay an old resume.
+        if self.seen is None:
+            self.seen=command['command_id'];self.engine.last_command_id=self.seen;return True
+        if self.seen!=command['command_id']:
+            self.seen=command['command_id']
+            self.engine.last_command_id=self.seen
+            at=command.get('command_at')
+            if command['command']=='pause': self.engine.pause()
+            elif at and (datetime.now(UTC)-instant(at)).total_seconds()<60: self.engine.resume()
+        return True
+    def before_submit(self):
+        try: healthy=self.exchange()
+        except (httpx.HTTPError,ValueError,KeyError): healthy=False
+        if not healthy: self.engine.pause('Desktop control connection unavailable')
+        return healthy and not self.engine.paused
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--once',action='store_true',help='Verify read-only broker state and exit; never submits')
+    parser.add_argument('--load-brain',action='store_true',help='Load a locally validated full network')
+    parser.add_argument('--export',type=Path,help='Export complete locally recorded history and exit')
+    args=parser.parse_args()
+    settings=Settings.load()
+    settings.database.parent.mkdir(parents=True,exist_ok=True)
+    lock=(settings.database.parent/'worker.lock').open('w')
+    try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError: raise SystemExit('A Tradefly worker is already running')
+    engine=Engine(settings)
+    if args.export:
+        snapshot=engine.snapshot();snapshot['decisions']=engine.ledger.decisions();snapshot['orders']=engine.ledger.orders();snapshot['events']=engine.ledger.events(1000000)
+        args.export.write_text(json.dumps(snapshot,indent=2));print('Export saved');return
+    if args.load_brain:
+        from .brain import FlyBrain
+        report=settings.brain_dir/'validation.json'
+        if report.exists() and json.loads(report.read_text()).get('passed'):
+            engine.brain=FlyBrain()
+            checkpoint=settings.database.parent/'brain.checkpoint'
+            if checkpoint.exists() and not engine.fatal:
+                engine.brain.restore(checkpoint)
+                engine.brain.steps=engine.ledger.get('brain_steps') or 0
+            print('Full brain loaded. Paper execution remains paused.',flush=True)
+        else: print('Brain validation has not passed; monitoring only.',flush=True)
+    bridge=Bridge(engine)
+    engine.before_submit=bridge.before_submit
+    running=True
+    def stop(*_):
+        nonlocal running
+        running=False
+    signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
+    while running:
+        try:
+            if settings.credentials_present: engine.tick()
+            else: engine.message='Add Alpaca paper credentials locally'
+        except (BrokerError,ValueError,KeyError) as error:
+            engine.connected=False
+            # BrokerError is sanitized. Do not log arbitrary exceptions containing request data.
+            reason=str(error) if isinstance(error,BrokerError) else 'Invalid backend state; check local validation'
+            engine.pause(reason)
+        except Exception:
+            engine.connected=False;engine.pause('Backend error; execution paused')
+        snapshot=engine.snapshot()
+        temporary=settings.database.parent/'status.tmp'
+        temporary.write_text(json.dumps(snapshot))
+        temporary.replace(settings.database.parent/'status.json')
+        try:
+            if not bridge.exchange() and not engine.paused: engine.pause('Desktop control connection unavailable')
+        except (httpx.HTTPError,ValueError,KeyError):
+            if not engine.paused: engine.pause('Desktop control connection unavailable')
+        if args.once:
+            print(json.dumps({'paper_connected':engine.connected,'paused':engine.paused,'credentials_configured':settings.credentials_present,
+                'message':engine.message,'brain_loaded':engine.brain is not None}))
+            break
+        for _ in range(settings.poll_seconds):
+            if not running:break
+            time.sleep(1)
+    if not args.once: engine.pause('Worker stopped')
+    bridge.client.close();engine.broker.close();engine.ledger.close()
+
+if __name__=='__main__': main()

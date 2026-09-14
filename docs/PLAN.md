@@ -1,6 +1,6 @@
 # Technical plan
 
-Planning date: 2026-09-14. All components below are proposed unless explicitly marked implemented. The repository now also contains an interactive desktop and synthetic paper-accounting fixture. The fly engine, genuine neural telemetry, market feed, and broker integration remain unimplemented. See DESKTOP.md.
+Original planning document, 2026-09-14. The backend has since been implemented; current behavior, deviations, tested limits, and unfinished research are documented in BACKEND.md, BRAIN.md, and VALIDATION.md. The proposal below is retained as the original experiment design, not a description of current implementation status.
 
 ## 1. Experiment contract
 
