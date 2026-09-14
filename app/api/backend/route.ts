@@ -19,13 +19,22 @@ export async function POST(request: Request) {
   if (request.headers.get('origin') !== new URL(request.url).origin)
     return json({ error: 'Origin rejected' }, 403);
   let command;
+  let symbols: unknown;
   try {
-    command = ((await request.json()) as { command?: unknown }).command;
+    const body = (await request.json()) as {
+      command?: unknown;
+      symbols?: unknown;
+    };
+    command = body.command;
+    symbols = body.symbols;
   } catch {
     return json({ error: 'Invalid request' }, 400);
   }
-  if (!['pause', 'resume'].includes(String(command)))
-    return json({ error: 'Only pause or resume is supported' }, 400);
+  if (
+    typeof command !== 'string' ||
+    !['pause', 'resume', 'watchlist'].includes(command)
+  )
+    return json({ error: 'Unknown command' }, 400);
   const row = await state();
   const snapshot = row?.snapshot ? JSON.parse(row.snapshot) : null;
   if (
@@ -39,11 +48,40 @@ export async function POST(request: Request) {
       { error: 'A connected account and validated brain are required' },
       409,
     );
+  if (command === 'watchlist') {
+    if (
+      !snapshot?.paused ||
+      !row?.received_at ||
+      Date.now() - Date.parse(row.received_at) > 45000
+    )
+      return json(
+        { error: 'Connect and pause the worker before changing stocks' },
+        409,
+      );
+    if (
+      !Array.isArray(symbols) ||
+      symbols.length < 1 ||
+      symbols.length > 24 ||
+      new Set(symbols).size !== symbols.length ||
+      symbols.some(
+        (s) => typeof s !== 'string' || !/^[A-Z][A-Z0-9.]{0,9}$/.test(s),
+      )
+    )
+      return json(
+        { error: 'Provide 1–24 unique uppercase stock symbols' },
+        400,
+      );
+  }
   const id = crypto.randomUUID();
   await database()
-    .prepare(`INSERT INTO backend_state(id,command,command_id,command_at) VALUES(1,?,?,?)
-    ON CONFLICT(id) DO UPDATE SET command=excluded.command,command_id=excluded.command_id,command_at=excluded.command_at`)
-    .bind(command, id, new Date().toISOString())
+    .prepare(`INSERT INTO backend_state(id,command,command_id,command_at,command_payload) VALUES(1,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET command=excluded.command,command_id=excluded.command_id,command_at=excluded.command_at,command_payload=excluded.command_payload`)
+    .bind(
+      command,
+      id,
+      new Date().toISOString(),
+      command === 'watchlist' ? JSON.stringify({ symbols }) : null,
+    )
     .run();
   return json({ command, command_id: id });
 }

@@ -21,10 +21,16 @@ Local `.env`: `ALPACA_PAPER_API_KEY`, `ALPACA_PAPER_SECRET_KEY`. Local `.env.bri
 
 - Local SQLite (`runs/tradefly.sqlite3`, WAL + synchronous FULL): immutable decision records, prepared orders, broker updates, account observations, events, account binding, recovery markers. Only one worker can acquire the OS file lock.
 - Brian2 local process: full graph, bounded count monitor, explicit input RNG, checkpointed voltages, conductances, refractory state, delayed events and input RNG. See BRAIN.md.
-- Hosted D1: latest telemetry snapshot, receipt timestamp, desired pause/resume command and unique command ID. Drizzle migrations own this schema.
+- Hosted D1: latest telemetry snapshot, receipt timestamp, desired pause/resume/watchlist command, payload and unique command ID. Drizzle migrations own this schema.
 - Worker sends a snapshot about every 15 seconds via authenticated POST `/api/bridge` and receives the current command. It rechecks this connection immediately before a submission.
 - Desktop polls `/api/backend` every five seconds. Its server requires the platform's authenticated user identity; mutations additionally require a same-origin request. The existing Site audience remains owner-only. Machine tokens cannot impersonate a browser identity to issue controls.
 - Optional read-only loopback API: `uv run uvicorn tradefly.api:app --host 127.0.0.1 --port 8000`. The hosted desktop uses the authenticated bridge, so this API is not required.
+
+## Watchlist and activity log
+
+The tracked `config/watchlist.json` initializes 12 stocks. The paused-only desktop watchlist editor validates 1–24 unique symbols locally and against Alpaca, then persists them in SQLite. Held stocks cannot be removed and unresolved orders prevent editing. One shared brain rotates deterministically, one stock per five-minute boundary; ordinary polls never advance the cursor. Per-symbol holdings reconcile against actual fills, and the exposure cap applies across all holdings. A changed watchlist starts at its first symbol but retains neural state; the event and each decision record expose that context.
+
+The Fly log renders measured decisions and recorded order/system events as plain language. Source records remain expandable and exportable. It does not use an LLM or claim to reveal a fly's inner thoughts. The isolated watchlist check uses real historical inputs and the full brain with fixed cash input; it is not a portfolio backtest.
 
 ## Execution behavior
 
@@ -32,7 +38,7 @@ A new completed bar must be from a valid Alpaca exchange-calendar session (inclu
 
 The decoder only receives measured BUY and SELL firing rates. Neither prices nor P&L enter it. The default is HOLD unless the higher pool reaches 20 Hz with at least an 8 Hz lead. There is no LLM or external strategy in the decision path.
 
-Sizing uses cash, not margin buying power. BUY requests at most $100 notional and available 10% entry exposure room. SELL requests at most $100 worth of shares at the reference price, clipped to actual holdings. Market execution can drift from the sizing price: the percentage is an entry-sizing constraint, not a continuous portfolio guarantee. There is no automatic liquidation, leverage, shorting, stop-loss strategy, or price-driven fallback. One order must resolve before another is submitted.
+Sizing uses cash, not margin buying power. BUY requests at most $100 notional and available 10% total portfolio entry exposure room. SELL requests at most $100 worth of shares at the reference price, clipped to actual holdings. Market execution can drift from the sizing price: the percentage is an entry-sizing constraint, not a continuous portfolio guarantee. There is no automatic liquidation, leverage, shorting, stop-loss strategy, or price-driven fallback. One order must resolve before another is submitted.
 
 An intent-derived `client_order_id` is committed before the POST. On a timeout or ambiguous failure, the worker queries by that same ID and never blindly repeats the POST. Partial fills remain unresolved. A missing order after an ambiguous request leaves execution paused for reconciliation. Unknown broker statuses remain unresolved. Pause requests cancellation only for Tradefly orders; it does not sell holdings or cancel unrelated orders. A fill can race with cancellation; subsequent reconciliation records it.
 
@@ -59,6 +65,7 @@ uv run python scripts/check-brain-checkpoint.py
 uv run python scripts/check-brain-restart.py
 uv run python scripts/benchmark-brain.py
 uv run python scripts/replay-market.py --date 2026-09-11 --bars 6
+uv run python scripts/check-watchlist.py
 npm test
 npx tsc --noEmit
 npm run lint

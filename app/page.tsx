@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
 import { Slider } from '@/components/ui/slider';
@@ -28,8 +29,9 @@ import {
 } from 'lucide-react';
 import { SESSION, metrics } from '@/lib/experiment';
 
-type AppId = 'overview' | 'brain' | 'ledger' | 'analysis' | 'notes';
+type AppId = 'overview' | 'brain' | 'ledger' | 'analysis' | 'notes' | 'log';
 const APPS = {
+  log: { title: 'Fly log', icon: Activity },
   overview: { title: 'Observation desk', icon: Grid2X2 },
   brain: { title: 'Decision inspector', icon: Network },
   ledger: { title: 'Trade ledger', icon: Table2 },
@@ -168,6 +170,10 @@ export default function Desktop() {
     return () => lifecycle.abort();
   }, []);
   function open(id: AppId) {
+    if (id === 'log') {
+      setMode('paper');
+      setPlaying(false);
+    }
     setWindows((ws) =>
       ws.some((w) => w.id === id)
         ? ws.map((w) =>
@@ -213,6 +219,7 @@ export default function Desktop() {
     setPlaying((p) => !p);
   }
   function content(id: AppId): ReactNode {
+    if (id === 'log') return <FlyLog backend={backend} />;
     if (mode === 'paper') return <PaperView id={id} backend={backend} />;
     return (
       <ExperimentView
@@ -265,7 +272,11 @@ export default function Desktop() {
               : backend.data.snapshot?.paused
                 ? 'PAUSED'
                 : 'RUNNING'}{' '}
-          <span className="menubar-divider" /> AAPL · PAPER
+          <span className="menubar-divider" />{' '}
+          {mode === 'demo'
+            ? 'AAPL'
+            : `${backend.data.snapshot?.watchlist?.length ?? 1} STOCKS`}{' '}
+          · PAPER
         </div>
       </header>
       <div className="desktop-background" aria-hidden="true">

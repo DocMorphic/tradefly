@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     command: row?.command,
     command_id: row?.command_id,
     command_at: row?.command_at,
+    command_payload: row?.command_payload
+      ? JSON.parse(row.command_payload)
+      : null,
     server_time: now,
   });
 }

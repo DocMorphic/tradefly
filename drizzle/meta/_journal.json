@@ -8,6 +8,13 @@
       "when": 1789343216225,
       "tag": "0000_black_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789347193565,
+      "tag": "0001_lonely_raider",
+      "breakpoints": true
     }
   ]
 }

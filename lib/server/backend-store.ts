@@ -39,5 +39,6 @@ export async function state() {
     command: string;
     command_id: string;
     command_at: string | null;
+    command_payload: string | null;
   }>();
 }

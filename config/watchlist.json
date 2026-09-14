@@ -1,0 +1,5 @@
+{
+  "symbols": ["AAPL", "MSFT", "NVDA", "AMZN", "JPM", "XOM", "JNJ", "WMT", "CAT", "NEE", "DIS", "PLD"],
+  "schedule": "round-robin-one-symbol-per-completed-five-minute-bar",
+  "note": "Example universe for sector variety, not an investment ranking. One shared persistent brain carries state across symbols."
+}

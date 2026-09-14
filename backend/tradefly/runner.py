@@ -35,7 +35,13 @@ class Bridge:
             self.engine.last_command_id=self.seen
             at=command.get('command_at')
             if command['command']=='pause': self.engine.pause()
-            elif at and (datetime.now(UTC)-instant(at)).total_seconds()<60: self.engine.resume()
+            elif at and (datetime.now(UTC)-instant(at)).total_seconds()<60:
+                try:
+                    if command['command']=='resume': self.engine.resume()
+                    elif command['command']=='watchlist': self.engine.set_watchlist((command.get('command_payload') or {}).get('symbols'))
+                except (ValueError,BrokerError) as e:
+                    self.engine.message='Command rejected: '+str(e)
+                    self.engine.ledger.event('command_rejected',{'reason':str(e)})
         return True
     def before_submit(self):
         try: healthy=self.exchange()

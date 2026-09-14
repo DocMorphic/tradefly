@@ -23,3 +23,9 @@ Raw neural reports stay locally in `data/brain/`. The actual-market pilot is und
 ## Expanded pre-resume validation
 
 The follow-up ran all 78 bars from 2026-09-11 with the frozen real brain and IEX data: {'HOLD': 77, 'BUY': 1}, 1 local simulated fill(s), net marked-to-market P&L $-0.43 on a $10,000 replay bankroll. This is separate from the unchanged $100,000 Alpaca paper account. The backend suite now has 25 passing tests. See PRE_RESUME_CHECK.md for the live-loop timing correction and exact test limits.
+
+## Watchlist and Fly log validation
+
+The backend suite now has 35 passing tests, including round-robin timing, no duplicate step between boundaries, per-symbol fill reconciliation, persisted cursor recovery, shared exposure limits and paused-only watchlist edits. Twelve desktop tests cover accounting and faithful activity-log rendering, including multi-stock records and simulated-fill labeling.
+
+An isolated real-network check used one actual IEX bar for each of the 12 stocks on 2026-09-11, with preceding causal volume history and a fixed $100,000 cash input. All 12 chose HOLD; the first BUY pool measured 12 Hz and the remaining BUY/SELL readouts were zero. Zero broker orders were submitted. The report is available in Fly log → Watchlist input check and locally at `runs/watchlist-check.json`. This checks connectivity and shared-state processing, not portfolio performance or biological fidelity. The earlier one-stock replay does not establish performance for this changed universe.

@@ -6,4 +6,5 @@ export const backendState = sqliteTable('backend_state', {
   command: text('command').notNull().default('pause'),
   commandId: text('command_id').notNull().default('initial'),
   commandAt: text('command_at'),
+  commandPayload: text('command_payload'),
 });

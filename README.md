@@ -29,14 +29,14 @@ flowchart LR
 
 The first version uses fixed neural weights. It does not learn from profits, understand stocks, or establish a recreation of a living fly. We are testing behavior, not assuming a profitable strategy.
 
-## Proposed defaults
+## Current defaults
 
 - FlyWire female v783 data, with the Shiu et al. Brian2 model as the reference implementation. This is distinct from the newer male CNS dataset; using the male map is a later explicit migration.
-- One stock, AAPL, for the first experiment; this is a test fixture, not an investment recommendation.
+- Twelve US stocks from `config/watchlist.json`, editable while paused. A single shared brain processes one symbol per five-minute bar in fixed rotation. The universe is an experiment fixture, not investment recommendations.
 - Completed five-minute bars during regular US market sessions.
-- $10,000 simulated starting cash; long-only; fixed $100 maximum order notional and 10% maximum position exposure; no borrowing, leverage, or shorting.
-- Historical replay before real-time paper orders. Alpaca paper-only integration is the proposed second stage.
-- Local Python service; SQLite event ledger and Parquet input data. The browser desktop is implemented first, using synthetic data, at the user’s request.
+- Real account cash comes from Alpaca (initially $100,000); historical replay and Demo use separate $10,000 ledgers. Long-only, $100 maximum intended order and 10% total portfolio entry exposure; no borrowing or shorting.
+- Historical replay and Alpaca paper-only integration are implemented. The worker starts paused.
+- Local Python worker, SQLite event ledger and private hosted telemetry. Fly log provides factual chronological activity; Decision inspector shows the detailed neural evidence.
 
 The real account balance comes from Alpaca rather than the demo bankroll. Execution enforces cash-only entry sizing and checks actual holdings; market fills may drift from the sizing reference price. The demo remains a separate synthetic ledger. See [the technical plan](docs/PLAN.md), [milestones](docs/ROADMAP.md), [user setup](docs/USER_SETUP.md), and [sources](docs/SOURCES.md).
 

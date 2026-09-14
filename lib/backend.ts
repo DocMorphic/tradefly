@@ -1,4 +1,5 @@
 export type PaperDecision = {
+  symbol?: string;
   id: string;
   created_at: string;
   action: 'BUY' | 'SELL' | 'HOLD';
@@ -33,7 +34,9 @@ export type PaperOrder = {
   broker: Record<string, string | null> | null;
 };
 export type BackendSnapshot = {
+  watchlist_check?: { symbol?: string; frames: unknown[]; fills: unknown[] };
   pilot_replay?: {
+    symbol?: string;
     source: string;
     date: string;
     scope: string;
@@ -93,6 +96,9 @@ export type BackendSnapshot = {
     next_close: string;
   };
   symbol: string;
+  watchlist?: string[];
+  next_symbol?: string;
+  selection_policy?: string;
   feed: string;
   latest_bar: PaperDecision['bar'] | null;
   limits: {

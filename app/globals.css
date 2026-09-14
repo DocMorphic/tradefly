@@ -2031,3 +2031,171 @@ body > div:has(> [data-slot='popover-content']) {
     monospace;
   fill: #84778f;
 }
+.fly-console {
+  display: flex;
+  flex-direction: column;
+  min-height: 530px;
+  background: #18132a;
+  color: #d5cce8;
+  font:
+    14px/1.6 ui-monospace,
+    SFMono-Regular,
+    monospace;
+}
+.fly-console-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  gap: 16px;
+}
+.fly-console-top b {
+  font:
+    24px Georgia,
+    serif;
+  color: #eee8f7;
+}
+.fly-console-top p {
+  font:
+    13px/1.6 Arial,
+    sans-serif;
+  color: #a89ebc;
+  margin: 7px 0;
+  max-width: 550px;
+}
+.fly-console button,
+.fly-console select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2b2240;
+  color: #ded3f0;
+  border: 1px solid #4b3d66;
+  border-radius: 4px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.fly-console button[aria-pressed='true'] {
+  background: #51406e;
+}
+.fly-console button:disabled {
+  opacity: 0.45;
+}
+.fly-console-controls {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  flex-wrap: wrap;
+  padding: 0 20px 15px;
+}
+.fly-console-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #a89ebc;
+}
+.fly-console-notice {
+  display: flex;
+  justify-content: space-between;
+  background: #231b34;
+  padding: 8px 20px;
+  color: #a99cbf;
+  font-size: 12px;
+  gap: 12px;
+}
+.fly-console-stream {
+  max-height: 520px;
+  overflow: auto;
+  padding: 8px 12px;
+  scrollbar-color: #64517e #18132a;
+}
+.fly-console-entry {
+  border-bottom: 1px solid #31263f;
+}
+.fly-console-entry summary {
+  display: grid;
+  grid-template-columns: 65px 55px 80px 1fr;
+  gap: 12px;
+  padding: 11px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.fly-console-entry summary:hover {
+  background: #292039;
+}
+.fly-console-entry time,
+.fly-log-phase {
+  color: #9383ad;
+  font-size: 12px;
+}
+.fly-log-symbol {
+  color: #c0a9e1;
+  font-size: 12px;
+}
+.phase-decision summary > span:last-child {
+  color: #f0dfb7;
+}
+.phase-execution summary > span:last-child {
+  color: #b2d6c7;
+}
+.fly-console-entry pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+  background: #21182f;
+  color: #a596bc;
+  font-size: 12px;
+}
+.fly-console-empty {
+  padding: 36px 18px;
+  color: #9687ab;
+}
+.fly-console footer {
+  font:
+    12px/1.6 Arial,
+    sans-serif;
+  padding: 12px 20px;
+  color: #9384a8;
+  border-top: 1px solid #352840;
+}
+@media (max-width: 650px) {
+  .fly-console-entry summary {
+    grid-template-columns: 55px 45px 1fr;
+    gap: 8px;
+  }
+  .fly-console-entry summary > span:last-child {
+    grid-column: 1/-1;
+  }
+  .fly-console-top {
+    align-items: start;
+  }
+}
+.paper-watchlist {
+  padding: 16px;
+  border: 1px solid #d8d1e0;
+  border-radius: 5px;
+  margin: 18px 0;
+}
+.paper-watchlist > button {
+  padding: 7px 12px;
+  background: #e4dfee;
+  border: 1px solid #c5b9d6;
+  border-radius: 4px;
+}
+.paper-watchlist small {
+  display: block;
+  font-size: 12px;
+  color: #83758f;
+  margin: 12px 0 0;
+}
+.paper-watchlist input {
+  width: 100%;
+  background: #f8f5fc;
+  border: 1px solid #c5b9d6;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}

@@ -1,0 +1,1 @@
+ALTER TABLE `backend_state` ADD `command_payload` text;

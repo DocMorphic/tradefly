@@ -24,7 +24,7 @@ Benchmark data loading, peak resident memory, checkpoint cost, and 100–1,000 m
 
 ## 3. Market input and the fixed encoder
 
-V1 trades one named stock. A single shared brain evaluating multiple tickers introduces ordering and cross-ticker state effects, so defer that extension.
+The current implementation extends the original one-stock pilot to an editable 1–24-symbol universe (12 by default). One shared brain evaluates one stock per five-minute bar in fixed round-robin order. Neural state carries across stocks, so both universe and ordering are recorded as experimental context. See WATCHING_TRADEFLY.md for current operation.
 
 Ingest completed five-minute OHLCV bars with feed identity, exchange/session timestamps, arrival timestamps, and adjustment policy. Use the exchange calendar, not a hard-coded Berlin-to-New-York offset. Handle daylight-saving differences, holidays, missing bars, corrections, and duplicate deliveries.
 

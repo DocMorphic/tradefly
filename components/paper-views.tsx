@@ -87,13 +87,16 @@ export function useBackend() {
       clearTimeout(timer);
     };
   }, []);
-  async function command(value: 'pause' | 'resume') {
+  async function command(
+    value: 'pause' | 'resume' | 'watchlist',
+    symbols?: string[],
+  ) {
     setBusy(true);
     try {
       const r = await fetch('/api/backend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: value }),
+        body: JSON.stringify({ command: value, symbols }),
       });
       const result = (await r.json()) as {
         error?: string;
@@ -155,7 +158,7 @@ function Decision({ d }: { d: PaperDecision }) {
     <div className="paper-decision">
       <div className="paper-title">
         <h3>
-          {d.action} <span>· {time(d.bar.t)}</span>
+          {d.symbol} {d.action} <span>· {time(d.bar.t)}</span>
         </h3>
         <span>{d.feed.toUpperCase()} · completed bar</span>
       </div>
@@ -311,6 +314,79 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
     </figure>
   );
 }
+function WatchlistEditor({ backend }: { backend: PaperBackend }) {
+  const s = backend.data.snapshot;
+  const [draft, setDraft] = useState(''),
+    [editing, setEditing] = useState(false);
+  if (!s) return null;
+  const list = s.watchlist ?? [s.symbol];
+  const pending =
+    backend.data.command === 'watchlist' &&
+    backend.data.command_id !== s.last_command_id;
+  return (
+    <section className="paper-watchlist">
+      <div className="paper-title">
+        <h3>Stocks the fly visits</h3>
+        <span>Next: {s.next_symbol ?? s.symbol}</span>
+      </div>
+      <p>{list.join(' · ')}</p>
+      <output>
+        {pending ? 'Checking the requested watchlist with Alpaca…' : s.message}
+      </output>
+      <p className="paper-reason">
+        One shared brain visits one stock every five minutes in this order. With{' '}
+        {list.length} stocks, each is revisited about every {list.length * 5}{' '}
+        market minutes. Neural state carries across stocks.
+      </p>
+      {editing ? (
+        <>
+          <label className="paper-select">
+            Symbols
+            <input
+              aria-label="Stock symbols in visit order"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="AAPL, MSFT, JPM"
+            />
+          </label>
+          <div className="paper-actions">
+            <button
+              disabled={backend.busy || backend.stale || !s.paused}
+              onClick={() => {
+                void backend.command(
+                  'watchlist',
+                  draft
+                    .toUpperCase()
+                    .split(/[\s,]+/)
+                    .filter(Boolean),
+                );
+                setEditing(false);
+              }}
+            >
+              Save watchlist
+            </button>
+            <button onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <button
+          disabled={backend.stale || !s.paused}
+          onClick={() => {
+            setDraft(list.join(', '));
+            setEditing(true);
+          }}
+        >
+          Edit stocks
+        </button>
+      )}
+      <small>
+        Change while paused. Up to 24 symbols; Alpaca verifies that each
+        supports fractional paper orders. Held stocks must stay on the list.
+        Saving retains the brain&apos;s current state.
+      </small>
+    </section>
+  );
+}
 export function PaperView({
   id,
   backend,
@@ -419,7 +495,8 @@ export function PaperView({
               <div className="paper-title">
                 <h2>Paper account</h2>
                 <span>
-                  {s.symbol} · {s.feed.toUpperCase()} · USD
+                  {(s.watchlist ?? [s.symbol]).length} stocks ·{' '}
+                  {s.feed.toUpperCase()} · USD
                 </span>
               </div>
               <div className="paper-stats">
@@ -487,6 +564,11 @@ export function PaperView({
                   </ul>
                 </details>
               )}
+              <p className="paper-reason">
+                Next stock: <b>{s.next_symbol ?? s.symbol}</b> ·{' '}
+                {(s.watchlist ?? [s.symbol]).join(' → ')}. Edit the watchlist in
+                Data &amp; definitions.
+              </p>
               <h3>Holdings</h3>
               <div className="paper-table">
                 <table>
@@ -547,7 +629,7 @@ export function PaperView({
                   >
                     {s.decisions.map((d) => (
                       <option value={d.id} key={d.id}>
-                        {time(d.bar.t)} · {d.action}
+                        {d.symbol || s.symbol} · {time(d.bar.t)} · {d.action}
                       </option>
                     ))}
                   </select>
@@ -672,7 +754,9 @@ export function PaperView({
                     {s.decisions.map((d) => (
                       <tr key={d.id}>
                         <td>{time(d.bar.t)}</td>
-                        <td>{d.action}</td>
+                        <td>
+                          {d.symbol || s.symbol} · {d.action}
+                        </td>
                         <td>{count(d.neural.buy_hz)}</td>
                         <td>{count(d.neural.sell_hz)}</td>
                         <td>{usd(d.bar.c)}</td>
@@ -836,6 +920,7 @@ export function PaperView({
           {id === 'notes' && (
             <>
               <h2>Connection &amp; experiment</h2>
+              <WatchlistEditor backend={backend} />
               <div className="paper-two">
                 <section>
                   <h3>Paper execution</h3>
@@ -849,7 +934,7 @@ export function PaperView({
                     <dt>Max intended order</dt>
                     <dd>$100</dd>
                     <dt>Entry exposure cap</dt>
-                    <dd>10% of equity</dd>
+                    <dd>10% of equity across all stocks</dd>
                     <dt>Shorts / leverage</dt>
                     <dd>Disabled</dd>
                     <dt>Pause</dt>

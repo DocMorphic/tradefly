@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from .alpaca import Alpaca, BrokerError
-from .config import Settings
+from .config import Settings,validate_watchlist
 from .domain import UTC, NY, completed_bars, decode, digest, encode, instant, now_iso, number, size_order
 from .storage import Ledger
 
@@ -21,6 +21,8 @@ class Engine:
         self.broker=broker or Alpaca(settings)
         self.ledger=ledger or Ledger(settings.database)
         self.brain=brain
+        self.watchlist=validate_watchlist(self.ledger.get('watchlist') or settings.watchlist or (settings.symbol,))
+        self.symbol=self.watchlist[(self.ledger.get('watchlist_cursor') or 0)%len(self.watchlist)]
         self.started=datetime.now(UTC)
         self.paused=True
         self.last_command_id=None
@@ -85,13 +87,16 @@ class Engine:
             result.append('Account is not available for trading')
         own={r['client_id'] for r in self.ledger.orders()}
         if any(o['client_order_id'] not in own for o in self.open_orders): result.append('Unrelated open orders in paper account')
-        if any(p['symbol']!=self.settings.symbol or number(p['qty'])<0 for p in self.positions):
-            result.append('Use a dedicated long-only AAPL paper account')
-        # Compare broker holdings to cumulative actual fills, including partial fills.
-        expected=sum((number(json.loads(r['broker']).get('filled_qty') or 0) * (1 if json.loads(r['broker']).get('side')=='buy' else -1)
-                      for r in self.ledger.orders() if r['broker']),number(0))
-        actual=sum((number(p['qty']) for p in self.positions if p['symbol']==self.settings.symbol),number(0))
-        if abs(expected-actual)>number('0.000001'): result.append('Broker holdings disagree with Tradefly fills')
+        if any(p['symbol'] not in self.watchlist or number(p['qty'])<0 for p in self.positions):
+            result.append('Untracked or short positions in paper account')
+        expected={}
+        for row in self.ledger.orders():
+            if not row['broker']: continue
+            order=json.loads(row['broker']);symbol=order.get('symbol') or json.loads(row['payload']).get('symbol',self.settings.symbol)
+            expected[symbol]=expected.get(symbol,number(0))+number(order.get('filled_qty') or 0)*(1 if order.get('side')=='buy' else -1)
+        actual={p['symbol']:number(p['qty']) for p in self.positions}
+        if any(abs(expected.get(symbol,number(0))-actual.get(symbol,number(0)))>number('0.000001') for symbol in set(expected)|set(actual)):
+            result.append('Broker holdings disagree with Tradefly fills')
         if any(r['status']=='uncertain' for r in self.ledger.orders()): result.append('Unresolved submission outcome')
         return result
 
@@ -101,20 +106,47 @@ class Engine:
         if reasons:
             self.paused=True;self.message='; '.join(reasons)
             self.ledger.event('resume_blocked',{'reasons':reasons});return False
+        for symbol in self.watchlist:
+            asset=self.broker.asset(symbol)
+            if not asset.get('tradable') or not asset.get('fractionable') or asset.get('status')!='active':
+                self.paused=True;self.message=f'{symbol} is not available for fractional paper trading';return False
         self.paused=False;self.message='Waiting for the next completed regular-session bar'
         self.started=datetime.now(UTC) # Never trade bars completed before resume.
         self.ledger.event('resume',{'at':self.started.isoformat()});return True
+
+    def set_watchlist(self, symbols):
+        if not self.paused: raise ValueError('Pause before changing the watchlist')
+        symbols=validate_watchlist(symbols)
+        self.refresh()
+        if any(r['status'] not in TERMINAL for r in self.ledger.orders()):
+            raise ValueError('Resolve Tradefly orders before changing the watchlist')
+        if any(p['symbol'] not in symbols for p in self.positions):
+            raise ValueError('Keep all currently held stocks in the watchlist')
+        for symbol in symbols:
+            asset=self.broker.asset(symbol)
+            if not asset.get('tradable') or not asset.get('fractionable') or asset.get('status')!='active':
+                raise ValueError(f'{symbol} is not available for fractional paper trading')
+        self.watchlist=symbols
+        self.ledger.set('watchlist',list(symbols));self.ledger.set('watchlist_cursor',0)
+        self.symbol=symbols[0]
+        self.ledger.event('watchlist_updated',{'symbols':list(symbols),'policy':'fixed round robin; shared neural state retained'})
+        self.message='Watchlist updated; shared brain state retained; execution remains paused'
 
     def submit_intent(self, decision, position, asset):
         action=decision['action']
         if self.paused: return None
         if any(r['status'] not in TERMINAL for r in self.ledger.orders()):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':'An order is still unresolved'});return None
-        sizing,reason=size_order(action,self.account,position,asset,decision['bar']['c'],self.settings.max_order,self.settings.max_exposure)
+        budget=number(self.settings.max_order)
+        if action=='BUY':
+            portfolio_value=sum((max(number(p.get('market_value',0)),number(0)) for p in self.positions),number(0))
+            budget=min(budget,max(number(0),number(self.account['equity'])*number(self.settings.max_exposure)-portfolio_value))
+        sizing,reason=size_order(action,self.account,position,asset,decision['bar']['c'],str(budget),self.settings.max_exposure)
+        if action=='BUY' and budget<1: reason='10% total portfolio exposure limit'
         if sizing is None:
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':reason});return None
         client_id='tf-'+digest(decision['id'])[:40]
-        payload={**sizing,'symbol':self.settings.symbol,'type':'market','time_in_force':'day',
+        payload={**sizing,'symbol':decision.get('symbol',self.symbol),'type':'market','time_in_force':'day',
                  'extended_hours':False,'client_order_id':client_id}
         # SQLite FULL commit happens before any network request. Never blind-retry POST.
         self.ledger.prepare_order(client_id,decision['id'],payload)
@@ -152,8 +184,17 @@ class Engine:
         session_open=datetime.fromisoformat(session['date']+'T'+session['open']).replace(tzinfo=NY)
         if expected_close<session_open+timedelta(minutes=5):
             self.message='Waiting for the first completed regular-session bar';return
-        bars=completed_bars(self.broker.bars(self.settings.symbol,start.isoformat(),end.isoformat()),calendar,end)
+        recorded=self.ledger.decisions()
+        if recorded and instant(recorded[-1]['bar']['t'])+timedelta(minutes=5)==expected_close:
+            return
+        self.symbol=self.watchlist[(self.ledger.get('watchlist_cursor') or 0)%len(self.watchlist)]
+        bars=completed_bars(self.broker.bars(self.symbol,start.isoformat(),end.isoformat()),calendar,end)
         if len(bars)<21: self.pause('Insufficient completed IEX bars');return
+        prior=next((d for d in reversed(recorded) if d.get('symbol',self.settings.symbol)==self.symbol),None)
+        if prior:
+            revision=next((b for b in bars if instant(b['t'])==instant(prior['bar']['t'])),None)
+            if revision and revision!=prior['bar']:
+                self.pause('A previously processed bar was corrected');return
         bar=bars[-1];close=instant(bar['t'])+timedelta(minutes=5)
         self.last_bar=bar
         if close<expected_close:
@@ -172,13 +213,15 @@ class Engine:
         previous_time=self.ledger.get('last_processed_bar')
         if previous_time and instant(previous_time)+timedelta(minutes=5)>self.started and instant(bar['t']).astimezone(NY).date()==instant(previous_time).astimezone(NY).date() and instant(bar['t'])-instant(previous_time)>timedelta(minutes=5):
             self.pause('Missed bars; resume explicitly to skip the backlog');return
-        position=next((p for p in self.positions if p['symbol']==self.settings.symbol),{})
+        position=next((p for p in self.positions if p['symbol']==self.symbol),{})
         rates=encode(bar,bars[:-1],self.account,position)
         self.ledger.set('brain_inflight',bar['t'])
         try:
             neural=self.brain.stimulate(rates)
             action,reason=decode(neural['buy_hz'],neural['sell_hz'])
-            decision={'id':digest(self.brain.manifest_hash+bar['t']), 'created_at':now_iso(),'bar':bar,
+            decision={'id':digest(self.brain.manifest_hash+self.symbol+bar['t']), 'symbol':self.symbol,
+                      'context_id':digest(self.brain.manifest_hash+json.dumps(list(self.watchlist))+self.settings.max_order+self.settings.max_exposure),
+                      'watchlist':list(self.watchlist),'selection_policy':'fixed round robin', 'created_at':now_iso(),'bar':bar,
                       'feed':'iex','adjustment':'raw','stimulus_hz':rates,'neural':neural,'action':action,
                       'reason':reason,'account':self.account.copy(),'position':position.copy()}
             checkpoint=self.settings.database.parent/'brain.checkpoint'
@@ -188,6 +231,7 @@ class Engine:
             self.ledger.decision(decision)
             self.ledger.set('last_processed_bar',bar['t'])
             self.ledger.set('brain_steps',self.brain.steps)
+            self.ledger.set('watchlist_cursor',(self.ledger.get('watchlist_cursor') or 0)+1)
             self.ledger.set('brain_inflight',None)
         except Exception:
             self.fatal=True;self.pause('Neural step interrupted; checkpoint recovery required');raise
@@ -196,9 +240,9 @@ class Engine:
         self.refresh()
         if self.blockers() or not self.market.get('is_open') or (datetime.now(UTC)-close).total_seconds()>150:
             self.pause('Execution state changed or decision expired');return
-        position=next((p for p in self.positions if p['symbol']==self.settings.symbol),{})
+        position=next((p for p in self.positions if p['symbol']==self.symbol),{})
         if not self.before_submit(): return
-        self.submit_intent(decision,position,self.broker.asset(self.settings.symbol))
+        self.submit_intent(decision,position,self.broker.asset(self.symbol))
 
     def snapshot(self):
         baseline=self.ledger.get('baseline')
@@ -219,13 +263,18 @@ class Engine:
         orders=[{**r,'payload':json.loads(r['payload']),'broker':json.loads(r['broker']) if r['broker'] else None} for r in self.ledger.orders()]
         replay_path=self.settings.database.parent/'replays/latest.json'
         pilot=json.loads(replay_path.read_text()) if replay_path.exists() else None
-        return {'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
+        check_path=self.settings.database.parent/'watchlist-check.json'
+        check=json.loads(check_path.read_text()) if check_path.exists() else None
+        return {'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
             'broker':{'connected':self.connected,'endpoint':'paper-api.alpaca.markets','credentials_configured':self.settings.credentials_present},
             'brain':{'ready':bool(self.brain and self.brain.ready),'loaded':self.brain is not None,
                      'manifest':manifest,'validation':validation},
             'account':self.account,'positions':self.positions,
             'market':{k:self.market.get(k) for k in ('is_open','timestamp','next_open','next_close')},
-            'symbol':self.settings.symbol,'feed':'iex','latest_bar':self.last_bar,
+            'symbol':self.symbol,'watchlist':list(self.watchlist),
+            'next_symbol':self.watchlist[(self.ledger.get('watchlist_cursor') or 0)%len(self.watchlist)],
+            'selection_policy':'One shared brain; fixed round robin; one stock per five-minute bar',
+            'feed':'iex','latest_bar':self.last_bar,
             'limits':{'max_order_usd':100,'max_exposure_pct':10,'long_only':True},
             'baseline':baseline,'equity_change_usd':delta,
             'max_observed_drawdown_pct':drawdown*100,'equity_sample_count':len(samples),
