@@ -112,7 +112,7 @@ small {
 }
 .desktop {
   height: 100dvh;
-  min-height: 520px;
+  min-height: 0;
   background: var(--desktop);
   overflow: hidden;
   position: relative;
@@ -225,22 +225,42 @@ small {
 }
 .desktop-icons {
   position: absolute;
-  top: 65px;
-  left: 16px;
-  width: 90px;
+  inset: 65px 16px 66px;
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  flex-flow: column wrap;
+  align-content: flex-start;
+  gap: 20px;
+  pointer-events: none;
+  z-index: 0;
 }
 .desktop-icons > button {
   display: flex;
   align-items: center;
   flex-direction: column;
   gap: 7px;
+  width: 96px;
+  height: 100px;
+  flex: 0 0 100px;
   color: #eeecff;
   font: 12px/1.4 var(--font-code);
   text-align: center;
   padding: 5px 0;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.desktop-icons > button:focus-visible {
+  outline: 1px dashed #eeeaff;
+  background: #706ca74d;
+}
+.desktop-icons > button.icon-dragging {
+  cursor: grabbing;
+  background: #706ca770;
+  border-color: #d3cbee80;
+  z-index: 1;
 }
 .desktop-icons > button:hover .desktop-icon {
   background: #7871b4;
@@ -1016,17 +1036,7 @@ h1 {
     min-height: 0;
   }
   .desktop-icons {
-    top: 53px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    flex-direction: row;
-    justify-content: space-around;
-    gap: 3px;
-  }
-  .desktop-icons > button {
-    font-size: 12px;
-    max-width: 65px;
+    inset: 53px 12px 60px;
   }
   .desktop-icon {
     width: 34px;

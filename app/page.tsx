@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { DesktopIcons } from '@/components/desktop-icons';
 import { FlyHabitat } from '@/components/fly-habitat';
 import { SwarmResearch } from '@/components/swarm-research';
 import { FlyLog } from '@/components/fly-log';
@@ -297,19 +298,17 @@ export default function Desktop() {
       <div className="desktop-background" aria-hidden="true">
         <div className="wallpaper-word">tradefly</div>
       </div>
-      <nav className="desktop-icons" aria-label="Applications">
-        {APP_IDS.map((id) => {
+      <DesktopIcons
+        apps={APP_IDS.map((id) => {
           const Icon = APPS[id].icon;
-          return (
-            <button key={id} onClick={() => open(id)}>
-              <span className="desktop-icon">
-                <Icon size={29} strokeWidth={1.3} />
-              </span>
-              <span>{APPS[id].title}</span>
-            </button>
-          );
+          return {
+            id,
+            title: APPS[id].title,
+            icon: <Icon size={29} strokeWidth={1.3} />,
+          };
         })}
-      </nav>
+        onOpen={(id) => open(id as AppId)}
+      />
       <div className="workspace" id="workspace" tabIndex={-1}>
         {windows
           .filter((w) => !w.minimized)
