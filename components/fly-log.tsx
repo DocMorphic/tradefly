@@ -57,6 +57,7 @@ export function FlyLog({ backend }: { backend: PaperBackend }) {
           <select value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="paper">Paper activity</option>
             <option value="historical">Historical replay</option>
+            <option value="market">Full-market input check</option>
             <option value="watchlist">Watchlist input check</option>
           </select>
         </label>
@@ -90,11 +91,21 @@ export function FlyLog({ backend }: { backend: PaperBackend }) {
             : s?.paused
               ? 'Paper worker paused'
               : 'Paper worker running'
-          : source === 'watchlist'
-            ? 'Watchlist input check · recorded brain activity · no orders'
-            : 'Historical replay · local simulated fills · no broker orders'}
+          : source === 'market'
+            ? 'Full-market check · sampled candidates · no orders'
+            : source === 'watchlist'
+              ? 'Watchlist input check · recorded brain activity · no orders'
+              : 'Historical replay · local simulated fills · no broker orders'}
         <span>{visible.length} entries</span>
       </div>
+      {source === 'market' && s?.market_check && (
+        <p className="fly-console-notice">
+          {s.market_check.candidates_checked} candidates checked ·{' '}
+          {s.market_check.neural_evaluations} neural evaluations ·{' '}
+          {s.market_check.coverage.data_gap ?? 0} data gaps. This is a sample,
+          not a test of every stock.
+        </p>
+      )}
       <div className="fly-console-stream" aria-label="Recorded fly activity">
         {visible.length ? (
           visible.map((e) => <LogEntry key={e.id} entry={e} />)

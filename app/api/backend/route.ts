@@ -49,6 +49,11 @@ export async function POST(request: Request) {
       409,
     );
   if (command === 'watchlist') {
+    if (snapshot?.universe)
+      return json(
+        { error: 'Full-market mode has no handpicked watchlist' },
+        409,
+      );
     if (
       !snapshot?.paused ||
       !row?.received_at ||

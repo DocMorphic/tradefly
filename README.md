@@ -32,8 +32,8 @@ The first version uses fixed neural weights. It does not learn from profits, und
 ## Current defaults
 
 - FlyWire female v783 data, with the Shiu et al. Brian2 model as the reference implementation. This is distinct from the newer male CNS dataset; using the male map is a later explicit migration.
-- Twelve US stocks from `config/watchlist.json`, editable while paused. A single shared brain processes one symbol per five-minute bar in fixed rotation. The universe is an experiment fixture, not investment recommendations.
-- Completed five-minute bars during regular US market sessions.
+- Every active, tradable US equity symbol returned by Alpaca (including ETFs). No handpicked shortlist. One shared brain continuously processes a neutral sensory tour; its measured output alone supplies each directional intent. Data gaps and unvisited stocks remain visible.
+- Completed five-minute input bars during regular US sessions; several stocks can be evaluated per boundary. There is no five-minute sleep between symbols.
 - Real account cash comes from Alpaca (initially $100,000); historical replay and Demo use separate $10,000 ledgers. Long-only, $100 maximum intended order and 10% total portfolio entry exposure; no borrowing or shorting.
 - Historical replay and Alpaca paper-only integration are implemented. The worker starts paused.
 - Local Python worker, SQLite event ledger and private hosted telemetry. Fly log provides factual chronological activity; Decision inspector shows the detailed neural evidence.

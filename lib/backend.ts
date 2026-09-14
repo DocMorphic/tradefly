@@ -34,6 +34,32 @@ export type PaperOrder = {
   broker: Record<string, string | null> | null;
 };
 export type BackendSnapshot = {
+  market_check?: {
+    frames: unknown[];
+    fills: unknown[];
+    symbol?: string;
+    scope: string;
+    candidates_checked: number;
+    neural_evaluations: number;
+    universe_total: number;
+    coverage: Record<string, number>;
+  };
+  universe?: {
+    mode: string;
+    id: string;
+    updated_at: string | null;
+    total: number;
+    fractionable: number;
+    symbols: string[];
+    statuses: Record<string, string>;
+    counts: Record<string, number>;
+    unseen: number;
+    cursor: number;
+    session_evaluated: number;
+    session_seconds: number;
+    scope: string;
+    recent: { symbol: string; at: string; status: string; detail: string }[];
+  };
   watchlist_check?: { symbol?: string; frames: unknown[]; fills: unknown[] };
   pilot_replay?: {
     symbol?: string;

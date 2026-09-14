@@ -132,6 +132,8 @@ class Engine:
         self.ledger.event('watchlist_updated',{'symbols':list(symbols),'policy':'fixed round robin; shared neural state retained'})
         self.message='Watchlist updated; shared brain state retained; execution remains paused'
 
+    def size_intent(self, *args): return size_order(*args)
+
     def submit_intent(self, decision, position, asset):
         action=decision['action']
         if self.paused: return None
@@ -141,7 +143,7 @@ class Engine:
         if action=='BUY':
             portfolio_value=sum((max(number(p.get('market_value',0)),number(0)) for p in self.positions),number(0))
             budget=min(budget,max(number(0),number(self.account['equity'])*number(self.settings.max_exposure)-portfolio_value))
-        sizing,reason=size_order(action,self.account,position,asset,decision['bar']['c'],str(budget),self.settings.max_exposure)
+        sizing,reason=self.size_intent(action,self.account,position,asset,decision['bar']['c'],str(budget),self.settings.max_exposure)
         if action=='BUY' and budget<1: reason='10% total portfolio exposure limit'
         if sizing is None:
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':reason});return None
@@ -254,7 +256,7 @@ class Engine:
         if manifest is None and manifest_path.exists(): manifest=json.loads(manifest_path.read_text())
         validation_path=self.settings.brain_dir/'validation.json'
         validation=json.loads(validation_path.read_text()) if validation_path.exists() else None
-        decisions=self.ledger.decisions()
+        decisions=self.ledger.decisions(100)
         samples=self.ledger.equity_samples()
         peak=0.;drawdown=0.
         for sample in samples:
@@ -272,12 +274,12 @@ class Engine:
             'account':self.account,'positions':self.positions,
             'market':{k:self.market.get(k) for k in ('is_open','timestamp','next_open','next_close')},
             'symbol':self.symbol,'watchlist':list(self.watchlist),
-            'next_symbol':self.watchlist[(self.ledger.get('watchlist_cursor') or 0)%len(self.watchlist)],
+            'next_symbol':self.watchlist[(self.ledger.get('watchlist_cursor') or 0)%len(self.watchlist)] if self.watchlist else None,
             'selection_policy':'One shared brain; fixed round robin; one stock per five-minute bar',
             'feed':'iex','latest_bar':self.last_bar,
             'limits':{'max_order_usd':100,'max_exposure_pct':10,'long_only':True},
             'baseline':baseline,'equity_change_usd':delta,
             'max_observed_drawdown_pct':drawdown*100,'equity_sample_count':len(samples),
             'equity_history':samples[-500:],'blockers':self.blockers(),
-            'decisions':decisions[-100:],'decision_count':len(decisions),'orders':orders[-100:],
+            'decisions':decisions[-100:],'decision_count':self.ledger.decision_count(),'orders':orders[-100:],
             'events':self.ledger.events(50),'export_note':'Latest 100 decisions/orders on desktop; complete history in local SQLite and local report export.'}

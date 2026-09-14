@@ -24,7 +24,7 @@ Benchmark data loading, peak resident memory, checkpoint cost, and 100–1,000 m
 
 ## 3. Market input and the fixed encoder
 
-The current implementation extends the original one-stock pilot to an editable 1–24-symbol universe (12 by default). One shared brain evaluates one stock per five-minute bar in fixed round-robin order. Neural state carries across stocks, so both universe and ordering are recorded as experimental context. See WATCHING_TRADEFLY.md for current operation.
+The current production implementation discovers every active, tradable Alpaca US equity symbol. One shared brain continuously processes a stable, price-independent sensory tour and accepts or passes each presented stock through the neural decoder. This replaces the initial single-stock and subsequent 12-stock pilots. Universe, sequence and neural state are experimental context. See WATCHING_TRADEFLY.md for operation and current limits.
 
 Ingest completed five-minute OHLCV bars with feed identity, exchange/session timestamps, arrival timestamps, and adjustment policy. Use the exchange calendar, not a hard-coded Berlin-to-New-York offset. Handle daylight-saving differences, holidays, missing bars, corrections, and duplicate deliveries.
 

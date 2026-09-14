@@ -314,75 +314,109 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
     </figure>
   );
 }
-function WatchlistEditor({ backend }: { backend: PaperBackend }) {
-  const s = backend.data.snapshot;
-  const [draft, setDraft] = useState(''),
-    [editing, setEditing] = useState(false);
-  if (!s) return null;
-  const list = s.watchlist ?? [s.symbol];
-  const pending =
-    backend.data.command === 'watchlist' &&
-    backend.data.command_id !== s.last_command_id;
+function MarketUniverse({ backend }: { backend: PaperBackend }) {
+  const [query, setQuery] = useState(''),
+    [page, setPage] = useState(0);
+  const u = backend.data.snapshot?.universe;
+  if (!u) return <p>Waiting for the full market inventory from the worker.</p>;
+  const symbols = u.symbols.filter((symbol) =>
+    symbol.toLowerCase().includes(query.toLowerCase()),
+  );
+  const visible = symbols.slice(page * 50, (page + 1) * 50);
+  const label = (status: string) =>
+    ({
+      BUY: 'Neural BUY',
+      SELL: 'Neural SELL',
+      HOLD: 'Neural HOLD',
+      data_gap: 'IEX data unavailable',
+      already_seen: 'Current bar already seen',
+      unseen: 'Not visited yet',
+    })[status] ?? status;
   return (
     <section className="paper-watchlist">
       <div className="paper-title">
-        <h3>Stocks the fly visits</h3>
-        <span>Next: {s.next_symbol ?? s.symbol}</span>
+        <h3>The whole available market</h3>
+        <span>{count(u.total)} symbols</span>
       </div>
-      <p>{list.join(' · ')}</p>
-      <output>
-        {pending ? 'Checking the requested watchlist with Alpaca…' : s.message}
-      </output>
+      <p>{u.scope}</p>
+      <div className="paper-stats">
+        <Stat
+          label="Not visited yet"
+          value={count(u.unseen)}
+          note="Available does not mean evaluated"
+        />
+        <Stat
+          label="Latest visit: data gap"
+          value={count(u.counts.data_gap ?? 0)}
+          note="No neural decision on missing inputs"
+        />
+        <Stat
+          label="Neural evaluations"
+          value={count(u.session_evaluated)}
+          note="Current worker session"
+        />
+        <Stat
+          label="Whole-share symbols"
+          value={count(u.total - u.fractionable)}
+          note="Order budget still applies"
+        />
+      </div>
       <p className="paper-reason">
-        One shared brain visits one stock every five minutes in this order. With{' '}
-        {list.length} stocks, each is revisited about every {list.length * 5}{' '}
-        market minutes. Neural state carries across stocks.
+        One shared brain sees stocks continuously. HOLD passes; BUY or SELL
+        produces an intent on the presented stock. The viewing order is fixed
+        without price rankings. Five minutes describes each input bar, not a
+        wait between stocks. Processing speed and data availability limit
+        coverage.
       </p>
-      {editing ? (
-        <>
-          <label className="paper-select">
-            Symbols
-            <input
-              aria-label="Stock symbols in visit order"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="AAPL, MSFT, JPM"
-            />
-          </label>
-          <div className="paper-actions">
-            <button
-              disabled={backend.busy || backend.stale || !s.paused}
-              onClick={() => {
-                void backend.command(
-                  'watchlist',
-                  draft
-                    .toUpperCase()
-                    .split(/[\s,]+/)
-                    .filter(Boolean),
-                );
-                setEditing(false);
-              }}
-            >
-              Save watchlist
-            </button>
-            <button onClick={() => setEditing(false)}>Cancel</button>
-          </div>
-        </>
-      ) : (
-        <button
-          disabled={backend.stale || !s.paused}
-          onClick={() => {
-            setDraft(list.join(', '));
-            setEditing(true);
+      <label className="paper-select">
+        Find any available symbol
+        <input
+          aria-label="Search the market universe"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
           }}
-        >
-          Edit stocks
+          placeholder="Search symbols"
+        />
+      </label>
+      <div className="paper-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Latest coverage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((symbol) => (
+              <tr key={symbol}>
+                <td>{symbol}</td>
+                <td>{label(u.statuses[symbol] ?? 'unseen')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="paper-actions">
+        <button disabled={page === 0} onClick={() => setPage(page - 1)}>
+          Previous
         </button>
-      )}
+        <span>
+          {symbols.length ? page * 50 + 1 : 0}–
+          {Math.min((page + 1) * 50, symbols.length)} of {count(symbols.length)}
+        </span>
+        <button
+          disabled={(page + 1) * 50 >= symbols.length}
+          onClick={() => setPage(page + 1)}
+        >
+          Next
+        </button>
+      </div>
       <small>
-        Change while paused. Up to 24 symbols; Alpaca verifies that each
-        supports fractional paper orders. Held stocks must stay on the list.
-        Saving retains the brain&apos;s current state.
+        Inventory refreshed {time(u.updated_at)}. Coverage means observed
+        inputs, not a prediction or proof of profitability. All records remain
+        in the local ledger; Export includes the received inventory.
       </small>
     </section>
   );
@@ -495,7 +529,7 @@ export function PaperView({
               <div className="paper-title">
                 <h2>Paper account</h2>
                 <span>
-                  {(s.watchlist ?? [s.symbol]).length} stocks ·{' '}
+                  {s.universe?.total ?? s.watchlist?.length ?? 0} symbols ·{' '}
                   {s.feed.toUpperCase()} · USD
                 </span>
               </div>
@@ -565,9 +599,9 @@ export function PaperView({
                 </details>
               )}
               <p className="paper-reason">
-                Next stock: <b>{s.next_symbol ?? s.symbol}</b> ·{' '}
-                {(s.watchlist ?? [s.symbol]).join(' → ')}. Edit the watchlist in
-                Data &amp; definitions.
+                Next stock: <b>{s.next_symbol ?? s.symbol}</b> · All{' '}
+                {count(s.universe?.total)} available US equity symbols. Inspect
+                coverage in Data &amp; definitions.
               </p>
               <h3>Holdings</h3>
               <div className="paper-table">
@@ -920,7 +954,7 @@ export function PaperView({
           {id === 'notes' && (
             <>
               <h2>Connection &amp; experiment</h2>
-              <WatchlistEditor backend={backend} />
+              <MarketUniverse backend={backend} />
               <div className="paper-two">
                 <section>
                   <h3>Paper execution</h3>

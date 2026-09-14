@@ -50,6 +50,9 @@ export function paperLog(s: BackendSnapshot): FlyLogEntry[] {
     >;
     let text: string;
     switch (e.kind) {
+      case 'universe_updated':
+        text = `Full market loaded: ${word(r.count)} tradable US equity symbols. No handpicked shortlist.`;
+        break;
       case 'watchlist_updated':
         text = `Watchlist updated: ${Array.isArray(r.symbols) ? r.symbols.join(' → ') : ''}. Shared neural state retained.`;
         break;
@@ -99,13 +102,29 @@ export function paperLog(s: BackendSnapshot): FlyLogEntry[] {
       raw: e.data,
     });
   }
+  for (const r of s.universe?.recent ?? []) {
+    if (r.status === 'data_gap')
+      entries.push({
+        id: `gap:${r.symbol}:${r.at}`,
+        at: r.at,
+        symbol: r.symbol,
+        phase: 'sense',
+        text: `Skipped input: ${r.detail}. No neural decision or order was produced for this visit.`,
+        raw: r,
+      });
+  }
   return entries.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }
 export function historicalLog(
   s: BackendSnapshot,
   source = 'historical',
 ): FlyLogEntry[] {
-  const p = source === 'watchlist' ? s.watchlist_check : s.pilot_replay;
+  const p =
+    source === 'market'
+      ? s.market_check
+      : source === 'watchlist'
+        ? s.watchlist_check
+        : s.pilot_replay;
   if (!p) return [];
   const frames = p.frames as {
     symbol?: string;

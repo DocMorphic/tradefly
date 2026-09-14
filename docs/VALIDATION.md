@@ -29,3 +29,13 @@ The follow-up ran all 78 bars from 2026-09-11 with the frozen real brain and IEX
 The backend suite now has 35 passing tests, including round-robin timing, no duplicate step between boundaries, per-symbol fill reconciliation, persisted cursor recovery, shared exposure limits and paused-only watchlist edits. Twelve desktop tests cover accounting and faithful activity-log rendering, including multi-stock records and simulated-fill labeling.
 
 An isolated real-network check used one actual IEX bar for each of the 12 stocks on 2026-09-11, with preceding causal volume history and a fixed $100,000 cash input. All 12 chose HOLD; the first BUY pool measured 12 Hz and the remaining BUY/SELL readouts were zero. Zero broker orders were submitted. The report is available in Fly log → Watchlist input check and locally at `runs/watchlist-check.json`. This checks connectivity and shared-state processing, not portfolio performance or biological fidelity. The earlier one-stock replay does not establish performance for this changed universe.
+
+## Full-market scan validation
+
+The production universe now comes from Alpaca's complete active/tradable US equity inventory, not the older 12-stock fixture. Read-only discovery returned 13,450 symbols, including 7,649 fractionable assets. No sector, price or volume shortlist was applied.
+
+The suite passes 43 backend and 13 desktop tests. Added checks cover uncapped universe membership, whole-share eligibility, independent symbol/bar uniqueness with legacy SQLite migration, one shared neural state across several stocks at one boundary, output-only directional acceptance, missing-data coverage, unresolved-order gating, refreshed batches at new boundaries, pagination and token-cycle rejection.
+
+The real full-network smoke presented the first 64 symbols in the neutral tour using historical IEX inputs from 2026-09-11. Twenty-three had usable causal inputs and produced HOLD; 41 were recorded as data gaps. It took 114.88 seconds without production checkpoint serialization or broker writes. This is not a production throughput guarantee. Report: `runs/market-check.json`, also available in Fly log → Full-market input check. The complete universe was discovered, but only these 64 candidates were tested with data; this is not an all-symbol neural validation or profitability evaluation.
+
+The network equations, weights, encoder and decoder were unchanged. This update expands access and scheduling, not learning, biological attention, consciousness or free will. Software still determines sensory presentation order and assigns trading meanings to output pools.

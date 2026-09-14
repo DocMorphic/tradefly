@@ -92,3 +92,25 @@ void test('watchlist check logs each frame under its own stock', () => {
     ['MSFT', 'MSFT', 'MSFT', 'NVDA', 'NVDA', 'NVDA'],
   );
 });
+
+void test('a market data gap is not described as a neural HOLD', () => {
+  const s = {
+    symbol: 'AAPL',
+    decisions: [],
+    events: [],
+    universe: {
+      recent: [
+        {
+          symbol: 'XYZ',
+          at: '2026-09-11T14:00:00Z',
+          status: 'data_gap',
+          detail: 'No current IEX bar',
+        },
+      ],
+    },
+  } as unknown as BackendSnapshot;
+  const [entry] = paperLog(s);
+  assert.equal(entry.symbol, 'XYZ');
+  assert.match(entry.text, /No neural decision or order/);
+  assert.doesNotMatch(entry.text, /HOLD/);
+});

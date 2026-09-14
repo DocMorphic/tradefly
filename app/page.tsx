@@ -275,7 +275,7 @@ export default function Desktop() {
           <span className="menubar-divider" />{' '}
           {mode === 'demo'
             ? 'AAPL'
-            : `${backend.data.snapshot?.watchlist?.length ?? 1} STOCKS`}{' '}
+            : `${backend.data.snapshot?.universe?.total ?? 0} STOCKS`}{' '}
           · PAPER
         </div>
       </header>

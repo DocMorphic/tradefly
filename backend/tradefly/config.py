@@ -28,8 +28,7 @@ class Settings:
         # Explicit file loading, no browser-prefixed variables, no secret repr.
         local = dotenv_values(ROOT / '.env') if (ROOT / '.env').exists() else {}
         bridge = dotenv_values(ROOT / '.env.bridge') if (ROOT / '.env.bridge').exists() else {}
-        symbols=validate_watchlist(json.loads((ROOT/'config/watchlist.json').read_text())['symbols'])
-        return cls(watchlist=symbols,api_key=os.getenv('ALPACA_PAPER_API_KEY', local.get('ALPACA_PAPER_API_KEY') or ''),
+        return cls(api_key=os.getenv('ALPACA_PAPER_API_KEY', local.get('ALPACA_PAPER_API_KEY') or ''),
                    secret_key=os.getenv('ALPACA_PAPER_SECRET_KEY', local.get('ALPACA_PAPER_SECRET_KEY') or ''),
                    bridge_token=bridge.get('TRADEFLY_BRIDGE_TOKEN') or '')
 

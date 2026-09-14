@@ -37,6 +37,7 @@ class Alpaca:
     def positions(self): return self.request('GET', '/v2/positions')
     def clock(self): return self.request('GET', '/v2/clock')
     def asset(self, symbol): return self.request('GET', '/v2/assets/' + quote(symbol, safe=''))
+    def assets(self): return self.request('GET', '/v2/assets', params={'status':'active','asset_class':'us_equity'})
     def open_orders(self): return self.request('GET', '/v2/orders', params={'status': 'open', 'limit': 500})
     def order(self, client_id):
         try:
@@ -49,14 +50,18 @@ class Alpaca:
     def calendar(self, start, end):
         return self.request('GET', '/v2/calendar', params={'start':start, 'end':end})
     def bars(self, symbol, start, end):
-        bars, token = [], None
+        return self.bars_many([symbol], start, end).get(symbol, [])
+
+    def bars_many(self, symbols, start, end):
+        bars, token, seen = {}, None, set()
         while True:
-            params = {'symbols':symbol, 'timeframe':'5Min', 'start':start, 'end':end,
+            params = {'symbols':','.join(symbols), 'timeframe':'5Min', 'start':start, 'end':end,
                       'feed':'iex', 'adjustment':'raw', 'sort':'asc', 'limit':10000}
             if token: params['page_token'] = token
             response = self.request('GET', '/v2/stocks/bars', data=True, params=params)
-            bars.extend(response.get('bars', {}).get(symbol, []))
+            for symbol, values in response.get('bars', {}).items():
+                bars.setdefault(symbol, []).extend(values)
             following = response.get('next_page_token')
             if not following: return bars
-            if following == token: raise BrokerError(None, 'repeated data page')
-            token = following
+            if following in seen: raise BrokerError(None, 'repeated data page')
+            seen.add(following); token = following

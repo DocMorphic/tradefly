@@ -10,7 +10,7 @@ from dotenv import dotenv_values
 from .alpaca import BrokerError
 from .config import ROOT, SITE_URL, Settings
 from .domain import now_iso, instant, UTC
-from .engine import Engine
+from .market import MarketEngine
 from datetime import datetime
 
 class Bridge:
@@ -60,7 +60,7 @@ def main():
     lock=(settings.database.parent/'worker.lock').open('w')
     try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError: raise SystemExit('A Tradefly worker is already running')
-    engine=Engine(settings)
+    engine=MarketEngine(settings)
     if args.export:
         snapshot=engine.snapshot();snapshot['decisions']=engine.ledger.decisions();snapshot['orders']=engine.ledger.orders();snapshot['events']=engine.ledger.events(1000000)
         args.export.write_text(json.dumps(snapshot,indent=2));print('Export saved');return
@@ -82,6 +82,7 @@ def main():
         nonlocal running
         running=False
     signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
+    next_bridge=0.
     while running:
         try:
             if settings.credentials_present: engine.tick()
@@ -97,15 +98,17 @@ def main():
         temporary=settings.database.parent/'status.tmp'
         temporary.write_text(json.dumps(snapshot))
         temporary.replace(settings.database.parent/'status.json')
-        try:
-            if not bridge.exchange() and not engine.paused: engine.pause('Desktop control connection unavailable')
-        except (httpx.HTTPError,ValueError,KeyError):
-            if not engine.paused: engine.pause('Desktop control connection unavailable')
+        if time.monotonic() >= next_bridge:
+            try:
+                if not bridge.exchange() and not engine.paused: engine.pause('Desktop control connection unavailable')
+            except (httpx.HTTPError,ValueError,KeyError):
+                if not engine.paused: engine.pause('Desktop control connection unavailable')
+            next_bridge=time.monotonic()+10
         if args.once:
             print(json.dumps({'paper_connected':engine.connected,'paused':engine.paused,'credentials_configured':settings.credentials_present,
                 'message':engine.message,'brain_loaded':engine.brain is not None}))
             break
-        for _ in range(settings.poll_seconds):
+        for _ in range(settings.poll_seconds if engine.paused or not engine.market.get('is_open') else 1):
             if not running:break
             time.sleep(1)
     if not args.once: engine.pause('Worker stopped')
