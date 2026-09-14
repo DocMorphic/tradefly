@@ -11,7 +11,7 @@ export function makeFlyScene(
   scene.background = new T.Color('#17132d');
   scene.fog = new T.Fog('#17132d', 8, 19);
   const camera = new T.PerspectiveCamera(36, 1, 0.1, 40);
-  camera.position.set(4.6, 3.2, 5.2);
+  camera.position.set(4.8, 3.3, -4.6);
   const renderer = new T.WebGLRenderer({
     antialias: true,
     alpha: false,
@@ -23,12 +23,12 @@ export function makeFlyScene(
   renderer.toneMappingExposure = 1.2;
   renderer.domElement.setAttribute(
     'aria-label',
-    'Interactive stylized 3D fruit fly at a trading terminal',
+    'Friendly fly gently typing in front of a large illustrative trading chart',
   );
   renderer.domElement.setAttribute('role', 'img');
   host.appendChild(renderer.domElement);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0.9, 0);
+  controls.target.set(0.15, 1.15, 0.35);
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.minDistance = 3.6;
@@ -98,7 +98,7 @@ export function makeFlyScene(
     parent.add(mesh);
   }
   const plinth = new T.Mesh(
-    new T.CylinderGeometry(2.2, 2.28, 0.18, 64),
+    new T.CylinderGeometry(2.6, 2.68, 0.18, 64),
     mats.desk,
   );
   plinth.position.y = 0.02;
@@ -111,7 +111,7 @@ export function makeFlyScene(
   ground.position.y = -0.09;
   scene.add(ground);
   const ring = new T.Mesh(
-    new T.TorusGeometry(2.16, 0.012, 6, 100),
+    new T.TorusGeometry(2.56, 0.012, 6, 100),
     new T.MeshBasicMaterial({ color: '#ae8dce' }),
   );
   ring.rotation.x = Math.PI / 2;
@@ -160,45 +160,57 @@ export function makeFlyScene(
       legs.push(leg);
       const a = new T.Vector3(0, 0, 0),
         b = new T.Vector3(side * 0.4, -0.34, 0.18 - i * 0.12),
-        c = new T.Vector3(side * 0.48, -0.85, 0.43 - i * 0.25);
+        c = new T.Vector3(
+          side * (i === 0 ? 0.1 : 0.4),
+          i === 0 ? -0.744 : -0.85,
+          i === 0 ? 0.58 : 0.43 - i * 0.25,
+        );
       bone(leg, a, b, 0.028);
       bone(leg, b, c, 0.018);
       oval(leg, mats.dark, c.toArray(), [0.07, 0.023, 0.13]);
     }
   const wings = makeWings(fly);
-  // A tiny physical keyboard; front-leg movements mirror activity, never submit orders.
+  // Decorative keyboard: key travel is synchronized with the front feet.
   const keyboard = new T.Group();
   keyboard.position.set(0.3, 0.18, 0.87);
   scene.add(keyboard);
   box(keyboard, mats.dark, [0, 0, 0], [1.08, 0.1, 0.43]);
+  const keycaps: T.Mesh[] = [];
   for (let row = 0; row < 3; row++)
     for (let col = 0; col < 9; col++)
-      box(
-        keyboard,
-        mats.keys,
-        [-0.46 + col * 0.115, 0.061, -0.13 + row * 0.13],
-        [0.086, 0.025, 0.09],
+      keycaps.push(
+        box(
+          keyboard,
+          mats.keys,
+          [-0.46 + col * 0.115, 0.061, -0.13 + row * 0.13],
+          [0.086, 0.025, 0.09],
+        ),
       );
   const monitor = new T.Group();
-  monitor.position.set(-1.22, 0.78, -0.24);
-  monitor.rotation.y = 0.35;
+  monitor.position.set(0.15, 1.88, 1.73);
+  monitor.rotation.y = Math.PI;
   scene.add(monitor);
-  box(monitor, mats.dark, [0, 0, 0], [1.12, 0.76, 0.1]);
-  box(monitor, mats.dark, [0, -0.49, -0.015], [0.12, 0.36, 0.1]);
-  box(monitor, mats.dark, [0, -0.65, 0.06], [0.5, 0.04, 0.33]);
+  box(monitor, mats.dark, [0, 0, 0], [3.25, 1.88, 0.14]);
+  box(monitor, mats.desk, [0, -1.12, -0.02], [0.19, 0.45, 0.16]);
+  box(monitor, mats.dark, [0, -1.57, 0.1], [1.12, 0.1, 0.6]);
+  box(monitor, mats.desk, [0, -1.35, -0.02], [0.19, 0.48, 0.16]);
   const screen = document.createElement('canvas');
-  screen.width = 512;
-  screen.height = 320;
+  screen.width = 1200;
+  screen.height = 660;
   const ctx = screen.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
   const texture = new T.CanvasTexture(screen);
   texture.colorSpace = T.SRGBColorSpace;
+  texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const display = new T.Mesh(
-    new T.PlaneGeometry(1, 0.63),
+    new T.PlaneGeometry(3.05, 1.68),
     new T.MeshBasicMaterial({ map: texture }),
   );
-  display.position.z = 0.056;
+  display.position.z = 0.076;
   monitor.add(display);
+  const glow = new T.PointLight('#93bcdb', 1.4, 4);
+  glow.position.set(0.2, 1.8, 1.25);
+  scene.add(glow);
   let lastText = '',
     lastTime = 0,
     t = 0,
@@ -218,25 +230,74 @@ export function makeFlyScene(
   });
   visibility.observe(host);
   function paint(a: FlyActivity) {
-    ctx!.fillStyle = '#191229';
-    ctx!.fillRect(0, 0, 512, 320);
-    ctx!.fillStyle = '#a591c7';
-    ctx!.font = '22px monospace';
-    ctx!.fillText(a.demo ? 'ANIMATION DEMO' : 'TRADEFLY / PAPER', 28, 44);
-    ctx!.fillStyle = '#ede1ff';
-    ctx!.font = 'bold 54px monospace';
-    ctx!.fillText(a.symbol.slice(0, 12), 28, 126);
-    ctx!.font = '32px monospace';
-    ctx!.fillStyle =
-      a.mood === 'BUY' ? '#b1d6cd' : a.mood === 'SELL' ? '#daa4c5' : '#b8a9e3';
-    ctx!.fillText(a.mood, 28, 190);
-    ctx!.fillStyle = '#8b79a8';
-    ctx!.font = '17px monospace';
-    ctx!.fillText(
-      a.demo ? 'No orders generated' : 'Recorded activity display',
-      28,
-      270,
-    );
+    const c = ctx!;
+    c.fillStyle = '#111b27';
+    c.fillRect(0, 0, 1200, 660);
+    c.fillStyle = '#b6bcd9';
+    c.font = '24px monospace';
+    c.fillText('TRADEFLY  /  TRADING DESK', 35, 48);
+    c.fillStyle = '#53617c';
+    c.fillRect(32, 70, 1136, 1);
+    c.fillStyle = '#eff3ff';
+    c.font = 'bold 37px monospace';
+    c.fillText('MARKET WATCH', 35, 124);
+    c.fillStyle = '#8b9bb0';
+    c.font = '20px monospace';
+    c.fillText('PAPER ACTIVITY', 885, 119);
+    c.fillStyle = '#e1d9f5';
+    c.font = 'bold 30px monospace';
+    c.fillText(a.symbol.slice(0, 12), 885, 168);
+    c.font = '20px monospace';
+    c.fillStyle = '#98a7bb';
+    c.fillText(a.mood, 885, 205);
+    for (let i = 0; i < 6; i++) {
+      c.strokeStyle = '#253347';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(36, 170 + i * 65);
+      c.lineTo(840, 170 + i * 65);
+      c.stroke();
+    }
+    // Deliberately fixed decorative candles, never presented as market prices.
+    let previous = 360;
+    for (let i = 0; i < 44; i++) {
+      const close =
+        370 - i * 3.2 + Math.sin(i * 0.72) * 42 + Math.sin(i * 2.1) * 15;
+      const open = previous;
+      const green = close < open;
+      const x = 48 + i * 18;
+      c.strokeStyle = c.fillStyle = green ? '#66d9aa' : '#f27886';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(x + 5, Math.min(open, close) - 12 - (i % 7));
+      c.lineTo(x + 5, Math.max(open, close) + 14);
+      c.stroke();
+      c.fillRect(
+        x,
+        Math.min(open, close),
+        10,
+        Math.max(4, Math.abs(close - open)),
+      );
+      c.globalAlpha = 0.45;
+      const volume = 15 + (Math.sin(i * 1.9) + 1) * 33;
+      c.fillRect(x, 548 - volume, 10, volume);
+      c.globalAlpha = 1;
+      previous = close;
+    }
+    c.fillStyle = '#8b9bb0';
+    c.font = '18px monospace';
+    c.fillText('BUY OUTPUT', 885, 290);
+    c.fillText('SELL OUTPUT', 885, 387);
+    c.font = 'bold 32px monospace';
+    c.fillStyle = '#66d9aa';
+    c.fillText(a.buyHz === null ? '—' : a.buyHz.toFixed(1) + ' Hz', 885, 335);
+    c.fillStyle = '#f27886';
+    c.fillText(a.sellHz === null ? '—' : a.sellHz.toFixed(1) + ' Hz', 885, 433);
+    c.fillStyle = '#253347';
+    c.fillRect(32, 583, 1136, 1);
+    c.fillStyle = '#a2aec2';
+    c.font = '20px monospace';
+    c.fillText('ILLUSTRATIVE CHART  ·  LIVE PAPER READINGS AT RIGHT', 35, 625);
     texture.needsUpdate = true;
   }
   renderer.setAnimationLoop((now) => {
@@ -247,59 +308,40 @@ export function makeFlyScene(
     const a = read(),
       active = moving();
     if (active) t += dt;
-    const working = ['SCANNING', 'BUY', 'SELL', 'PENDING', 'FILLED'].includes(
-        a.mood,
-      ),
-      buy = a.mood === 'BUY',
-      sell = a.mood === 'SELL',
-      fill = a.mood === 'FILLED';
-    const key = a.mood + a.symbol + a.demo;
+    const key = a.mood + a.symbol + a.buyHz + a.sellHz;
     if (key !== lastText) {
       paint(a);
       lastText = key;
     }
-    fly.position.y =
-      (working ? 0.022 : 0.007) * Math.sin(t * (working ? 4 : 1.3)) +
-      (fill ? 0.09 * Math.abs(Math.sin(t * 4)) : 0);
-    fly.rotation.y = sell
-      ? -0.14 + 0.06 * Math.sin(t * 3)
-      : buy
-        ? 0.12
-        : working
-          ? 0.075 * Math.sin(t * 1.4)
-          : 0.015 * Math.sin(t * 0.5);
-    head.rotation.y = working
-      ? 0.17 * Math.sin(t * 1.7)
-      : 0.03 * Math.sin(t * 0.5);
-    head.rotation.x =
-      a.mood === 'PAUSED' || a.mood === 'CLOSED' ? 0.13 : buy ? -0.08 : 0;
+    // One quiet desk loop, independent of orders, decisions and broker state.
+    fly.position.y = 0.005 * Math.sin(t * 1.5);
+    fly.rotation.y = 0.018 * Math.sin(t * 0.65);
+    head.rotation.y = 0.065 * Math.sin(t * 0.85);
+    head.rotation.x = 0.05 + 0.025 * Math.sin(t * 1.1);
     legs.forEach((leg, i) => {
-      leg.rotation.x =
-        working && i % 3 === 0
-          ? 0.14 * Math.sin(t * (buy || sell ? 15 : 7) + i)
-          : 0.015 * Math.sin(t + i);
-      leg.rotation.z = fill ? 0.06 * Math.sin(t * 10 + i) : 0;
+      const tap = Math.max(0, Math.sin(t * 4.8 + (i < 3 ? 0 : Math.PI)));
+      leg.rotation.x = i % 3 === 0 ? 0.027 * tap : 0;
+      leg.rotation.z = 0;
+    });
+    keycaps.forEach((cap, i) => {
+      const tappingKey = i === 1 || i === 7;
+      const tap = tappingKey
+        ? Math.max(0, Math.sin(t * 4.8 + (i === 1 ? Math.PI : 0)))
+        : 0;
+      cap.position.y = 0.061 - 0.016 * tap;
     });
     wings.forEach((wing, i) => {
       const side = i === 0 ? -1 : 1;
-      // Rest over the abdomen; open gently for activity and lift for fills.
-      // These illustrative beats are deliberately slow enough to read on screen.
-      const spread = side * (fill ? -0.56 : working ? -0.18 : -0.08);
-      const lift = side * ((fill ? 0.28 : 0.055) +
-        (fill ? 0.20 : working ? 0.025 : 0.008) *
-        Math.sin(t * (fill ? 24 : working ? 6 : 1.8)));
-      if (active) {
-        wing.rotation.y = T.MathUtils.damp(wing.rotation.y, spread, 7, dt);
-        wing.rotation.z = T.MathUtils.damp(wing.rotation.z, lift, 14, dt);
-      }
+      wing.rotation.y = side * -0.08;
+      wing.rotation.z = side * (0.055 + 0.006 * Math.sin(t * 1.5));
     });
     controls.update();
     renderer.render(scene, camera);
   });
   return {
     resetCamera() {
-      camera.position.set(4.6, 3.2, 5.2);
-      controls.target.set(0, 0.9, 0);
+      camera.position.set(4.8, 3.3, -4.6);
+      controls.target.set(0.15, 1.15, 0.35);
       controls.update();
     },
     dispose() {

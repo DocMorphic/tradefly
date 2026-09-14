@@ -2,19 +2,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import type { PaperBackend } from './paper-views';
-import { flyActivity, previewActivity, type FlyMood } from '@/lib/fly/activity';
+import { flyActivity } from '@/lib/fly/activity';
 export function FlyHabitat({ backend }: { backend: PaperBackend }) {
   const host = useRef<HTMLDivElement>(null),
     scene = useRef<{ resetCamera: () => void; dispose: () => void } | null>(
       null,
     );
-  const [preview, setPreview] = useState<FlyMood | null>(null),
-    [motion, setMotion] = useState(true),
+  const [motion, setMotion] = useState(true),
     [now, setNow] = useState(0),
     [status, setStatus] = useState('Loading the 3D habitat…');
-  const activity = preview
-    ? previewActivity(preview)
-    : flyActivity(backend.data.snapshot, backend.stale, now);
+  const activity = flyActivity(backend.data.snapshot, backend.stale, now);
   const current = useRef(activity),
     moving = useRef(motion);
   current.current = activity;
@@ -45,12 +42,15 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
           setStatus('');
         } catch {
           setStatus(
-            '3D needs WebGL support. The activity readings and preview controls remain available.',
+            '3D needs WebGL support. The activity readings remain available.',
           );
         }
       })
       .catch(() => {
-        if (!cancelled) setStatus('The 3D scene could not load. Reopen this window to retry.');
+        if (!cancelled)
+          setStatus(
+            'The 3D scene could not load. Reopen this window to retry.',
+          );
       });
     return () => {
       cancelled = true;
@@ -62,7 +62,7 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
     <div className="fly-habitat">
       <header className="habitat-header">
         <div>
-          <span>ONE FLY / A VERY SMALL TRADING DESK</span>
+          <span>ONE FLY / TRADING DESK</span>
           <h2>Meet your trader.</h2>
         </div>
         <div className="habitat-controls">
@@ -83,35 +83,13 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
           </div>
         )}
         <div className="habitat-overlay">
-          <span>{preview ? 'ANIMATION PREVIEW' : 'PAPER TELEMETRY'}</span>
+          <span>PAPER TELEMETRY</span>
           <strong>{activity.label}</strong>
           <small>{activity.symbol}</small>
         </div>
         <span className="habitat-gesture">
           Drag to orbit · scroll or pinch to zoom
         </span>
-      </div>
-      <div className="habitat-source">
-        <button
-          aria-pressed={preview === null}
-          onClick={() => setPreview(null)}
-        >
-          Follow paper activity
-        </button>
-        <span>Try an animation:</span>
-        {(
-          ['SCANNING', 'BUY', 'SELL', 'HOLD', 'FILLED', 'PAUSED'] as FlyMood[]
-        ).map((mood) => (
-          <button
-            key={mood}
-            aria-pressed={preview === mood}
-            onClick={() => setPreview(mood)}
-          >
-            {mood === 'FILLED'
-              ? 'Fill'
-              : mood.charAt(0) + mood.slice(1).toLowerCase()}
-          </button>
-        ))}
       </div>
       <p className="habitat-detail" role="status">
         {activity.detail}
@@ -132,15 +110,14 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
           </b>
         </span>
         <span>
-          Animation source{' '}
-          <b>{preview ? 'Demo controls' : 'Worker telemetry'}</b>
+          Desk animation{' '}
+          <b>{motion ? 'Gentle typing loop' : 'Motion paused'}</b>
         </span>
       </div>
       <footer>
-        Stylized activity avatar. The body movements are illustrative, not a
-        biological motor simulation. BUY/SELL show intents; only a
-        broker-confirmed fill gets the fill animation. Preview and motion
-        controls never place orders or resume trading.
+        A little company while the experiment runs. Typing and the screen’s
+        red/green chart are decorative; readings above come from paper
+        telemetry. Pause motion only stops the animation.
       </footer>
     </div>
   );

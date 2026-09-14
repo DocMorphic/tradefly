@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Download, Pause, Play, RefreshCw } from 'lucide-react';
+import { HoldingsTable } from './holdings-table';
 import type {
   BackendResponse,
   BackendSnapshot,
@@ -605,40 +606,7 @@ export function PaperView({
                 {count(s.universe?.total)} available US equity symbols. Inspect
                 coverage in Data &amp; definitions.
               </p>
-              <h3>Holdings</h3>
-              <div className="paper-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Symbol</th>
-                      <th>Shares</th>
-                      <th>Average cost</th>
-                      <th>Last price</th>
-                      <th>Market value</th>
-                      <th>Unrealized P&amp;L</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.positions.map((p) => (
-                      <tr key={p.symbol}>
-                        <td>{p.symbol}</td>
-                        <td>{count(p.qty)}</td>
-                        <td>{usd(p.avg_entry_price)}</td>
-                        <td>{usd(p.current_price)}</td>
-                        <td>{usd(p.market_value)}</td>
-                        <td>{usd(p.unrealized_pl)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!s.positions.length && (
-                  <Empty>
-                    {s.broker.connected
-                      ? 'No open positions.'
-                      : 'Connect Alpaca to read holdings.'}
-                  </Empty>
-                )}
-              </div>
+              <HoldingsTable snapshot={s} />
               <h3>Latest decision</h3>
               {decision ? (
                 <>
