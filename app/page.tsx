@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { EvidenceDesk, type EvidenceTarget } from '@/components/evidence-desk';
 import { DesktopIcons } from '@/components/desktop-icons';
 import { FlyHabitat } from '@/components/fly-habitat';
 import { SwarmResearch } from '@/components/swarm-research';
@@ -41,8 +42,10 @@ type AppId =
   | 'notes'
   | 'log'
   | 'swarm'
-  | 'habitat';
+  | 'habitat'
+  | 'evidence';
 const APPS = {
+  evidence: { title: 'Evidence desk', icon: Network },
   habitat: { title: 'Fly habitat', icon: Bug },
   swarm: { title: 'Swarm research', icon: FlaskConical },
   log: { title: 'Fly log', icon: Activity },
@@ -71,6 +74,9 @@ const DEFAULT_WINDOW: Win = {
 };
 export default function Desktop() {
   const backend = useBackend();
+  const [evidenceTarget, setEvidenceTarget] = useState<EvidenceTarget | null>(
+    null,
+  );
   const [mode, setMode] = useState<'paper' | 'demo'>('paper');
   const [windows, setWindows] = useState<Win[]>([DEFAULT_WINDOW]);
   const top = useRef(1);
@@ -232,11 +238,19 @@ export default function Desktop() {
     }
     setPlaying((p) => !p);
   }
+  function showEvidence(decisionId: string) {
+    setEvidenceTarget({ decisionId, nonce: Date.now() });
+    open('evidence');
+  }
   function content(id: AppId): ReactNode {
+    if (id === 'evidence')
+      return <EvidenceDesk backend={backend} target={evidenceTarget} />;
     if (id === 'habitat') return <FlyHabitat backend={backend} />;
     if (id === 'swarm') return <SwarmResearch />;
-    if (id === 'log') return <FlyLog backend={backend} />;
-    if (mode === 'paper') return <PaperView id={id} backend={backend} />;
+    if (id === 'log')
+      return <FlyLog backend={backend} onTrace={showEvidence} />;
+    if (mode === 'paper')
+      return <PaperView id={id} backend={backend} onTrace={showEvidence} />;
     return (
       <ExperimentView
         id={id}

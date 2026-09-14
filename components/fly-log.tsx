@@ -3,7 +3,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, Download } from 'lucide-react';
 import { historicalLog, paperLog, type FlyLogEntry } from '@/lib/fly-log';
 import type { PaperBackend } from './paper-views';
-export function FlyLog({ backend }: { backend: PaperBackend }) {
+export function FlyLog({
+  backend,
+  onTrace,
+}: {
+  backend: PaperBackend;
+  onTrace?: (id: string) => void;
+}) {
   const [source, setSource] = useState('paper'),
     [phase, setPhase] = useState('all'),
     [symbol, setSymbol] = useState('all'),
@@ -108,7 +114,17 @@ export function FlyLog({ backend }: { backend: PaperBackend }) {
       )}
       <div className="fly-console-stream" aria-label="Recorded fly activity">
         {visible.length ? (
-          visible.map((e) => <LogEntry key={e.id} entry={e} />)
+          visible.map((e) => (
+            <LogEntry
+              key={e.id}
+              entry={e}
+              onTrace={
+                source === 'paper' && e.phase === 'decision'
+                  ? () => onTrace?.((e.raw as { id: string }).id)
+                  : undefined
+              }
+            />
+          ))
         ) : (
           <div className="fly-console-empty">
             {source === 'paper'
@@ -125,7 +141,13 @@ export function FlyLog({ backend }: { backend: PaperBackend }) {
     </div>
   );
 }
-function LogEntry({ entry: e }: { entry: FlyLogEntry }) {
+function LogEntry({
+  entry: e,
+  onTrace,
+}: {
+  entry: FlyLogEntry;
+  onTrace?: () => void;
+}) {
   return (
     <details className={`fly-console-entry phase-${e.phase}`}>
       <summary>
@@ -136,6 +158,11 @@ function LogEntry({ entry: e }: { entry: FlyLogEntry }) {
         <span className="fly-log-phase">{e.phase}</span>
         <span>{e.text}</span>
       </summary>
+      {onTrace && (
+        <button className="evidence-link" onClick={onTrace}>
+          Follow this decision ↗
+        </button>
+      )}
       <pre>{JSON.stringify(e.raw, null, 2)}</pre>
     </details>
   );

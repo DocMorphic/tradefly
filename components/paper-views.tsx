@@ -153,7 +153,7 @@ function Raw({
     </details>
   );
 }
-function Decision({ d }: { d: PaperDecision }) {
+export function Decision({ d }: { d: PaperDecision }) {
   return (
     <div className="paper-decision">
       <div className="paper-title">
@@ -424,9 +424,11 @@ function MarketUniverse({ backend }: { backend: PaperBackend }) {
 export function PaperView({
   id,
   backend,
+  onTrace,
 }: {
   id: string;
   backend: PaperBackend;
+  onTrace?: (id: string) => void;
 }) {
   const { data, error, stale, busy, command } = backend,
     s = data.snapshot;
@@ -639,7 +641,15 @@ export function PaperView({
               </div>
               <h3>Latest decision</h3>
               {decision ? (
-                <Decision d={decision} />
+                <>
+                  <button
+                    className="evidence-link"
+                    onClick={() => onTrace?.(decision.id)}
+                  >
+                    Follow this decision ↗
+                  </button>
+                  <Decision d={decision} />
+                </>
               ) : (
                 <Empty>
                   No measured market decisions yet. Nothing in this view is
@@ -670,7 +680,15 @@ export function PaperView({
                 </label>
               )}
               {decision ? (
-                <Decision d={decision} />
+                <>
+                  <button
+                    className="evidence-link"
+                    onClick={() => onTrace?.(decision.id)}
+                  >
+                    Follow this decision ↗
+                  </button>
+                  <Decision d={decision} />
+                </>
               ) : (
                 <Empty>
                   Waiting for the first completed market bar processed by the
@@ -742,6 +760,7 @@ export function PaperView({
                       <th>Filled shares</th>
                       <th>Average fill</th>
                       <th>Fill value</th>
+                      <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -765,6 +784,14 @@ export function PaperView({
                               )
                             : '—'}
                         </td>
+                        <td>
+                          <button
+                            className="evidence-link"
+                            onClick={() => onTrace?.(o.decision_id)}
+                          >
+                            Trace ↗
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -782,6 +809,7 @@ export function PaperView({
                       <th>SELL Hz</th>
                       <th>Close</th>
                       <th>Order outcome</th>
+                      <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -800,6 +828,14 @@ export function PaperView({
                             (d.action === 'HOLD'
                               ? 'No order'
                               : 'No submission · see events')}
+                        </td>
+                        <td>
+                          <button
+                            className="evidence-link"
+                            onClick={() => onTrace?.(d.id)}
+                          >
+                            Replay ↗
+                          </button>
                         </td>
                       </tr>
                     ))}

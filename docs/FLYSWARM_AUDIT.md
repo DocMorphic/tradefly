@@ -44,3 +44,11 @@ The UI runs scenario ticks while its research window is open and the browser pag
 Validation: external token discovery returned 29 tokens via the Robinhood RPC/Pons factory during a read-only check. Deterministic engine tests verify serialization continuity, settings, generated positions and reset. External data may subsequently be unavailable; the UI exposes degraded and prototype modes.
 
 The live holder probe returned 13 positive-balance holders for one returned contract; its exact block coverage is exposed by the adapter. A locally isolated Worker/D1 integration check passed identity/origin rejection, persisted scenario state, generated-plan settings, conflicting-revision protection, invalid-contract rejection and the read-only SSE endpoint. Test state remained in an isolated local database and never touched Alpaca.
+
+## Evidence experience follow-up
+
+The stock-side Evidence desk now links exact decision and client-order identifiers into a five-stage read-only replay. It never joins unrelated trades merely because their symbols match. Stock dossiers include the retained decisions/orders and broker position; the market map exposes every available symbol with latest coverage. Full lifetime history is not available from the latest-snapshot transport; missing times and realized P&L remain unavailable where a truncated history would make them misleading.
+
+Swarm research now consumes the existing authenticated SSE snapshots, ignores older revisions, preserves unsaved plan edits during incoming updates, and closes the stream while hidden. Its graph supports mouse/keyboard wallet selection, animated flow markers with reduced-motion handling, linked fixture cohort history, and packed/selectable holder bubbles. Packing proximity is explicitly not funding evidence.
+
+The pilot-comparison view adds transparent financial controls to the stock experiment rather than importing Swarm scores into the neural policy. It uses the archived fly actions, matched input bars, next-open fills, 2 bps slippage and 1 bp fees. Random policies use seeds 1–30; these are action seeds, not neural reruns. Buy-and-hold enters once for at most $100 and is not exposure-matched. Final holdings are marked, not force-liquidated. Comparisons are withheld if the reconstructed fly P&L differs from the archived report by over $0.02.

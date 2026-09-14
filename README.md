@@ -60,3 +60,9 @@ The separate Swarm research window adapts FlySwarm's token radar, holder sample,
 ### Fly habitat
 
 Open **Fly habitat** from the desktop to see a 3D activity avatar at its trading desk. Drag to orbit and scroll/pinch to zoom. It follows paper-worker telemetry, distinguishes order intents from broker-confirmed fills, and shows the latest measured BUY/SELL firing rates. Preview buttons animate sample states without placing orders or resuming trading. Motion can be paused and respects reduced-motion preferences. The stylized movements are illustrative, not biological motor outputs. Three.js license: `public/three-license.txt`.
+
+### Evidence desk
+
+The read-only Evidence desk links decisions from Observation desk, Decision inspector, Trade ledger and Fly log into market input → neural response → intent → execution → broker outcome. Stock dossiers and the paginated market map distinguish visited stocks, missing inputs and unseen symbols. Views use the bounded telemetry snapshot and label missing/older records explicitly; full history remains in the local ledger.
+
+Replay comparison re-executes the recorded single-stock intraday pilot under its original next-open fill/cost convention and verifies the reported P&L before displaying cash, one $100 buy-and-hold entry and 30 seeded random-action controls. It does not rerun neural seeds or establish held-out profitability. All control paths and assumptions can be exported.

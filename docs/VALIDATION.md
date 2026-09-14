@@ -39,3 +39,9 @@ The suite passes 43 backend and 13 desktop tests. Added checks cover uncapped un
 The real full-network smoke presented the first 64 symbols in the neutral tour using historical IEX inputs from 2026-09-11. Twenty-three had usable causal inputs and produced HOLD; 41 were recorded as data gaps. It took 114.88 seconds without production checkpoint serialization or broker writes. This is not a production throughput guarantee. Report: `runs/market-check.json`, also available in Fly log → Full-market input check. The complete universe was discovered, but only these 64 candidates were tested with data; this is not an all-symbol neural validation or profitability evaluation.
 
 The network equations, weights, encoder and decoder were unchanged. This update expands access and scheduling, not learning, biological attention, consciousness or free will. Software still determines sensory presentation order and assigns trading meanings to output pools.
+
+## Connected evidence and pilot controls
+
+Twenty desktop tests pass, including exact decision/order joins, missing execution evidence, partial fills, data-gap distinction, next-open comparison fills, cost inclusion, final-intent non-execution, seeded controls and mismatched-report rejection. The new views never call pause/resume or order endpoints.
+
+The archived 78-bar AAPL pilot from 2026-09-11 reconstructs exactly: recorded fly net P&L **-$0.4271345483**, cash **$0**, one-$100-entry buy-and-hold **+$0.0648845501**. Thirty random-action seeds have median **-$3.2496533088**, range **-$7.2597410312 to +$1.0863081508** on the same $10,000 initial bankroll. These are marked intraday outcomes under 2 bps modeled slippage and 1 bp modeled fees, not live fills or a held-out evaluation. Random action seeds do not replace multiple neural-seed experiments.

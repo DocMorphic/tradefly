@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { packHolders } from '@/lib/swarm/layout';
 import { Download, Pause, Play, RefreshCw, Search } from 'lucide-react';
 import type {
   SwarmSnapshot,
@@ -47,6 +48,9 @@ export function SwarmResearch() {
   const [score, setScore] = useState(78),
     [size, setSize] = useState(250),
     [enabled, setEnabled] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('Connecting'),
+    [holderAddress, setHolderAddress] = useState<string | null>(null);
+  const configDirty = useRef(false);
   const sequence = useRef(0),
     latest = useRef(desk),
     pending = useRef(false);
@@ -56,7 +60,10 @@ export function SwarmResearch() {
       const r = await fetch('/api/swarm');
       const d = (await r.json()) as Desk & { error?: string };
       if (!r.ok) throw new Error(d.error);
+      if (latest.current && d.revision < latest.current.revision) return;
+      latest.current = d;
       setDesk(d);
+      configDirty.current = false;
       setScore(d.snapshot.config.minScore);
       setSize(d.snapshot.config.maxPosition);
       setEnabled(d.snapshot.config.enabled);
@@ -84,8 +91,11 @@ export function SwarmResearch() {
         if (r.status === 409) await refresh();
         throw new Error(d.error);
       }
-      latest.current = d;
-      setDesk(d);
+      if (!latest.current || d.revision >= latest.current.revision) {
+        latest.current = d;
+        setDesk(d);
+      }
+      if (action === 'config') configDirty.current = false;
       setError('');
     } catch (e) {
       setRunning(false);
@@ -114,6 +124,7 @@ export function SwarmResearch() {
   async function select(t: Token) {
     const request = ++sequence.current;
     setToken(t);
+    setHolderAddress(null);
     setHolders(null);
     setHolderLoading(true);
     setMarketError('');
@@ -147,6 +158,44 @@ export function SwarmResearch() {
   useEffect(() => {
     void refresh();
     void loadTokens();
+  }, []);
+  useEffect(() => {
+    let stream: EventSource | null = null;
+    function connect() {
+      stream?.close();
+      stream = null;
+      if (document.hidden) {
+        setStreamStatus('Updates paused while hidden');
+        return;
+      }
+      stream = new EventSource('/api/swarm/stream');
+      stream.onmessage = (event) => {
+        try {
+          const next = JSON.parse(event.data) as Desk;
+          if (!next.snapshot || !Number.isFinite(next.revision)) return;
+          setStreamStatus('Shared updates connected');
+          if (latest.current && next.revision <= latest.current.revision)
+            return;
+          latest.current = next;
+          setDesk(next);
+          if (!configDirty.current) {
+            setScore(next.snapshot.config.minScore);
+            setSize(next.snapshot.config.maxPosition);
+            setEnabled(next.snapshot.config.enabled);
+          }
+        } catch {
+          setStreamStatus('Invalid update; reconnecting');
+        }
+      };
+      // This endpoint sends one snapshot then reconnects by design.
+      stream.onerror = () => setStreamStatus('Reconnecting for next update');
+    }
+    connect();
+    document.addEventListener('visibilitychange', connect);
+    return () => {
+      stream?.close();
+      document.removeEventListener('visibilitychange', connect);
+    };
   }, []);
   useEffect(() => {
     if (!running) return;
@@ -217,7 +266,7 @@ export function SwarmResearch() {
       </nav>
       <div className="swarm-control">
         <span>
-          Scenario tick {s?.meta.tick ?? '—'} ·{' '}
+          {streamStatus} · Scenario tick {s?.meta.tick ?? '—'} ·{' '}
           {s?.focusToken?.symbol || 'Rotating sample tokens'}
         </span>
         <div>
@@ -398,7 +447,11 @@ export function SwarmResearch() {
               {signal?.status || 'FORMING'} · {signal?.score ?? '—'}/100
             </span>
           </div>
-          <FundingGraph state={s} />
+          <FundingGraph
+            state={s}
+            selected={selectedWallet?.alias}
+            onSelect={setWallet}
+          />
           <div className="swarm-wallets">
             {s.hunters.map((h) => (
               <button
@@ -431,6 +484,30 @@ export function SwarmResearch() {
                   }
                 />
               </div>
+            </div>
+          )}
+          {selectedWallet && (
+            <div className="swarm-dossier">
+              <h3>{selectedWallet.alias} · linked example history</h3>
+              <p className="swarm-muted">
+                Fixed prototype cohorts involving this wallet; not measured
+                returns.
+              </p>
+              {s.memory
+                .filter((c) => c.members.includes(selectedWallet.alias))
+                .map((c) => (
+                  <article key={c.members.join()}>
+                    <b>{c.members.join(' · ')}</b>
+                    <p>
+                      {c.history
+                        .map(
+                          (h) =>
+                            `${h.token}: ${h.result}× exit / ${h.peak}× peak`,
+                        )
+                        .join(' · ')}
+                    </p>
+                  </article>
+                ))}
             </div>
           )}
           <TransferTape state={s} />
@@ -473,7 +550,44 @@ export function SwarmResearch() {
                   </button>
                 ))}
               </div>
-              <HolderBubbles holders={list} />
+              <HolderBubbles
+                holders={list}
+                selected={holderAddress}
+                onSelect={setHolderAddress}
+              />
+              {holders.items
+                .filter((h) => h.address === holderAddress)
+                .map((h) => (
+                  <article className="swarm-dossier" key={h.address}>
+                    <h3>Selected holder</h3>
+                    <p className="swarm-address">{h.address}</p>
+                    <div className="swarm-metrics">
+                      <Metric
+                        label="Supply share"
+                        value={`${h.percentage.toFixed(3)}%`}
+                      />
+                      <Metric
+                        label="Reported balance"
+                        value={h.balance.toLocaleString()}
+                      />
+                      <Metric
+                        label="Outgoing transactions"
+                        value={String(h.nonce)}
+                      />
+                      <Metric
+                        label="Activity / account"
+                        value={`${h.kind} / ${h.accountType}`}
+                      />
+                    </div>
+                    <a href={h.explorerUrl} target="_blank" rel="noreferrer">
+                      View source in explorer ↗
+                    </a>
+                    <p className="swarm-muted">
+                      {holders.mode} · {holders.coverage}. Bubble placement
+                      shows no inferred wallet connection.
+                    </p>
+                  </article>
+                ))}
               <div className="swarm-table">
                 <table>
                   <thead>
@@ -652,7 +766,10 @@ export function SwarmResearch() {
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
+                onChange={(e) => {
+                  configDirty.current = true;
+                  setEnabled(e.target.checked);
+                }}
               />{' '}
               Enable simulated entries
             </label>
@@ -664,7 +781,10 @@ export function SwarmResearch() {
                 max={99}
                 required
                 value={score}
-                onChange={(e) => setScore(Number(e.target.value))}
+                onChange={(e) => {
+                  configDirty.current = true;
+                  setScore(Number(e.target.value));
+                }}
               />
             </label>
             <label>
@@ -675,7 +795,10 @@ export function SwarmResearch() {
                 max={5000}
                 required
                 value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
+                onChange={(e) => {
+                  configDirty.current = true;
+                  setSize(Number(e.target.value));
+                }}
               />
             </label>
             <button disabled={busy}>Save scenario settings</button>
@@ -810,7 +933,15 @@ function TransferTape({ state: s }: { state: SwarmSnapshot }) {
     </div>
   );
 }
-function FundingGraph({ state: s }: { state: SwarmSnapshot }) {
+function FundingGraph({
+  state: s,
+  selected,
+  onSelect,
+}: {
+  state: SwarmSnapshot;
+  selected?: string;
+  onSelect: (alias: string) => void;
+}) {
   const nodes = s.network.nodes,
     groups = ['hunter', 'fresh', 'token'];
   const positions = new Map(
@@ -833,7 +964,7 @@ function FundingGraph({ state: s }: { state: SwarmSnapshot }) {
       </figcaption>
       <svg
         viewBox="0 0 740 350"
-        role="img"
+        role="group"
         aria-label="Generated wallet funding routes"
       >
         <text x="70" y="25">
@@ -859,7 +990,29 @@ function FundingGraph({ state: s }: { state: SwarmSnapshot }) {
         {nodes.map((n) => {
           const p = positions.get(n.id)!;
           return (
-            <g key={n.id}>
+            <g
+              key={n.id}
+              role={n.type === 'hunter' ? 'button' : undefined}
+              tabIndex={n.type === 'hunter' ? 0 : undefined}
+              aria-label={
+                n.type === 'hunter' ? `Inspect ${n.label}` : undefined
+              }
+              className={
+                selected === n.id ? 'swarm-node selected' : 'swarm-node'
+              }
+              onClick={() => {
+                if (n.type === 'hunter') onSelect(n.id);
+              }}
+              onKeyDown={(e) => {
+                if (
+                  n.type === 'hunter' &&
+                  (e.key === 'Enter' || e.key === ' ')
+                ) {
+                  e.preventDefault();
+                  onSelect(n.id);
+                }
+              }}
+            >
               <circle cx={p.x} cy={p.y} r={n.type === 'token' ? 18 : 7} />
               <text x={p.x} y={p.y + 27} textAnchor="middle">
                 {n.label}
@@ -871,23 +1024,46 @@ function FundingGraph({ state: s }: { state: SwarmSnapshot }) {
     </figure>
   );
 }
-function HolderBubbles({ holders }: { holders: HolderResult['items'] }) {
+function HolderBubbles({
+  holders,
+  selected,
+  onSelect,
+}: {
+  holders: HolderResult['items'];
+  selected: string | null;
+  onSelect: (address: string) => void;
+}) {
+  const points = packHolders(holders.map((h) => h.percentage));
   return (
     <figure className="swarm-bubbles">
       <figcaption>
-        Sampled supply share · bubble size indicates percentage
+        Sampled supply share · select a bubble · placement does not imply
+        connections
       </figcaption>
       <svg
         viewBox="0 0 740 370"
-        role="img"
+        role="group"
         aria-label="Holder balances shown as labeled bubbles"
       >
         {holders.slice(0, 28).map((h, i) => {
-          const x = 55 + (i % 7) * 105,
-            y = 50 + Math.floor(i / 7) * 90,
-            r = Math.min(37, 8 + Math.sqrt(h.percentage) * 5);
+          const { x, y, r } = points[i];
           return (
-            <g key={h.address}>
+            <g
+              key={h.address}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect holder ${i + 1}, ${h.percentage.toFixed(2)} percent`}
+              className={
+                selected === h.address ? 'swarm-node selected' : 'swarm-node'
+              }
+              onClick={() => onSelect(h.address)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(h.address);
+                }
+              }}
+            >
               <title>
                 {h.address}: {h.percentage.toFixed(2)}%, {h.kind},{' '}
                 {h.accountType}
@@ -899,10 +1075,7 @@ function HolderBubbles({ holders }: { holders: HolderResult['items'] }) {
                 className={h.kind === 'NEW' ? 'new-holder' : ''}
               />
               <text x={x} y={y + 4} textAnchor="middle">
-                {h.percentage.toFixed(1)}%
-              </text>
-              <text x={x} y={y + 43} textAnchor="middle">
-                #{i + 1} {h.kind}
+                #{i + 1}
               </text>
             </g>
           );
