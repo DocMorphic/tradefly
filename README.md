@@ -56,3 +56,7 @@ Large datasets, credentials, downloaded third-party code, and experiment output 
 ## Swarm research desk
 
 The separate Swarm research window adapts FlySwarm's token radar, holder sample, funding graph, wallet dossiers, cohort memory, explainable rule scores, simulated position plans and terminal. Token/holder observations are labeled by source; funding/cohort/return examples are prominently synthetic. Research settings cannot place Alpaca orders or alter the biological simulation. See [the upstream audit and feature map](docs/FLYSWARM_AUDIT.md).
+
+### Fly habitat
+
+Open **Fly habitat** from the desktop to see a 3D activity avatar at its trading desk. Drag to orbit and scroll/pinch to zoom. It follows paper-worker telemetry, distinguishes order intents from broker-confirmed fills, and shows the latest measured BUY/SELL firing rates. Preview buttons animate sample states without placing orders or resuming trading. Motion can be paused and respects reduced-motion preferences. The stylized movements are illustrative, not biological motor outputs. Three.js license: `public/three-license.txt`.

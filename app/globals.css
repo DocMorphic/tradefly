@@ -2242,3 +2242,23 @@ body > div:has(> [data-slot='popover-content']) {
 .swarm-terminal .swarm-prototype{color:#bf9ada}.swarm-terminal>div{display:grid;grid-template-columns:95px minmax(240px,1fr) 95px;gap:14px;border-bottom:1px solid #44375c;padding:7px 0}.swarm-terminal time{color:#a598bf}.swarm-terminal b{text-align:right;font-weight:400}
 .swarm-credit{border-top:1px solid #d5cbe0;margin-top:24px;padding-top:14px}
 @media(max-width:700px){.swarm-desk{padding:16px}.swarm-radar{grid-template-columns:1fr}.swarm-token-list{max-height:210px}.swarm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.swarm-search{flex-wrap:wrap}.swarm-search input{width:100%}.swarm-top h2{font-size:27px}}
+
+.fly-habitat{color:#382a4e;padding:22px;font-size:14px;line-height:1.55}
+.habitat-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:17px}
+.habitat-header>div>span{font:11px var(--font-code,monospace);letter-spacing:.12em;color:#826c9c}
+.habitat-header h2{font:italic 31px Georgia,serif;margin:5px 0}
+.habitat-controls,.habitat-source{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.fly-habitat button{font-family:inherit;font-size:13px;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #c7b8db;background:#f4effa;color:#584373;border-radius:5px;cursor:pointer}
+.fly-habitat button:hover{background:#e7ddf3}.fly-habitat button[aria-pressed=true]{background:#544075;color:#fff;border-color:#544075}
+.habitat-stage{height:clamp(330px,48vh,520px);position:relative;border-radius:10px;overflow:hidden;background:#17132d;border:1px solid #55406f}
+.habitat-canvas{position:absolute;inset:0}.habitat-canvas canvas{display:block;width:100%;height:100%;touch-action:none}
+.habitat-overlay{position:absolute;top:18px;left:20px;display:flex;flex-direction:column;gap:4px;pointer-events:none;color:#e2d8f1;text-shadow:0 2px 12px #17132d}
+.habitat-overlay>span{font:10px var(--font-code,monospace);letter-spacing:.14em;color:#b29ec9}.habitat-overlay strong{font-size:18px;font-weight:500}.habitat-overlay small{font:13px var(--font-code,monospace);color:#b7a3d1}
+.habitat-gesture{position:absolute;bottom:14px;left:20px;color:#a38bbd;font-size:12px;pointer-events:none}
+.habitat-fallback{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:30px;color:#d3c3e4;background:#211933}
+.habitat-source{margin:14px 0}.habitat-source>span{color:#8a789b;font-size:12px;margin:0 4px}
+.habitat-detail{margin:9px 0;color:#62506f;min-height:22px}
+.habitat-readings{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:15px 0;border-top:1px solid #d9cfe3;border-bottom:1px solid #d9cfe3}
+.habitat-readings>span{display:flex;flex-direction:column;gap:7px;color:#8a789b;font-size:12px}.habitat-readings b{font:16px var(--font-code,monospace);color:#51406a}
+.fly-habitat footer{font-size:12px;color:#8a789b;line-height:1.6;padding-top:13px}
+@media(max-width:650px){.fly-habitat{padding:14px}.habitat-header h2{font-size:27px}.habitat-stage{height:350px}.habitat-readings{grid-template-columns:1fr 1fr}.habitat-overlay strong{font-size:15px}}

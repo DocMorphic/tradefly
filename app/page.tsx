@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { FlyHabitat } from '@/components/fly-habitat';
 import { SwarmResearch } from '@/components/swarm-research';
 import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
@@ -14,6 +15,7 @@ import { ExperimentView } from '@/components/experiment-views';
 import { Slider } from '@/components/ui/slider';
 import {
   Activity,
+  Bug,
   BarChart3,
   BookOpen,
   FlaskConical,
@@ -37,8 +39,10 @@ type AppId =
   | 'analysis'
   | 'notes'
   | 'log'
-  | 'swarm';
+  | 'swarm'
+  | 'habitat';
 const APPS = {
+  habitat: { title: 'Fly habitat', icon: Bug },
   swarm: { title: 'Swarm research', icon: FlaskConical },
   log: { title: 'Fly log', icon: Activity },
   overview: { title: 'Observation desk', icon: Grid2X2 },
@@ -228,6 +232,7 @@ export default function Desktop() {
     setPlaying((p) => !p);
   }
   function content(id: AppId): ReactNode {
+    if (id === 'habitat') return <FlyHabitat backend={backend} />;
     if (id === 'swarm') return <SwarmResearch />;
     if (id === 'log') return <FlyLog backend={backend} />;
     if (mode === 'paper') return <PaperView id={id} backend={backend} />;
