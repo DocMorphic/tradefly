@@ -10,6 +10,7 @@ import { flushSync } from 'react-dom';
 import { EvidenceDesk, type EvidenceTarget } from '@/components/evidence-desk';
 import { DesktopIcons } from '@/components/desktop-icons';
 import { FlyHabitat } from '@/components/fly-habitat';
+import { BrainActivity } from '@/components/brain-activity';
 import { SwarmResearch } from '@/components/swarm-research';
 import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
@@ -50,6 +51,7 @@ type AppId =
   | 'log'
   | 'swarm'
   | 'habitat'
+  | 'activity'
   | 'evidence';
 const APPS = {
   evidence: { title: 'Evidence desk', icon: Network },
@@ -61,6 +63,7 @@ const APPS = {
   ledger: { title: 'Trade ledger', icon: Table2 },
   analysis: { title: 'Performance lab', icon: BarChart3 },
   notes: { title: 'Data & definitions', icon: BookOpen },
+  activity: { title: 'Brain activity', icon: Activity },
 };
 const APP_IDS = Object.keys(APPS) as AppId[];
 type Win = {
@@ -255,7 +258,10 @@ export default function Desktop() {
   function windowStatus(id: AppId) {
     if (id === 'swarm')
       return 'Swarm research · live explorer / prototype signals';
-    if (mode === 'demo' && !['evidence', 'habitat', 'log'].includes(id))
+    if (
+      mode === 'demo' &&
+      !['evidence', 'habitat', 'log', 'activity'].includes(id)
+    )
       return 'Synthetic demo · simulated trades';
     const snapshot = backend.data.snapshot;
     if (!snapshot) return 'Alpaca paper · waiting for worker telemetry';
@@ -272,6 +278,8 @@ export default function Desktop() {
     return `Alpaca paper connected · ${brain} · ${state}`;
   }
   function content(id: AppId): ReactNode {
+    if (id === 'activity')
+      return <BrainActivity backend={backend} onTrace={showEvidence} />;
     if (id === 'evidence')
       return <EvidenceDesk backend={backend} target={evidenceTarget} />;
     if (id === 'habitat') return <FlyHabitat backend={backend} />;
