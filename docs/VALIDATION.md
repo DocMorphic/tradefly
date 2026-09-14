@@ -19,3 +19,7 @@ Measured locally on 2026-09-14.
 Neural response checks are a v783 engineering adaptation, not a statistical reproduction of the original v630 paper. No parameters were tuned against pilot profit. Broader held-out financial evaluation, matched controls and multiple seeds remain unperformed.
 
 Raw neural reports stay locally in `data/brain/`. The actual-market pilot is under `runs/replays/` and available in the hosted Performance lab. The complete dataset remains local; only manifest and report summaries are shared with the private desktop.
+
+## Expanded pre-resume validation
+
+The follow-up ran all 78 bars from 2026-09-11 with the frozen real brain and IEX data: {'HOLD': 77, 'BUY': 1}, 1 local simulated fill(s), net marked-to-market P&L $-0.43 on a $10,000 replay bankroll. This is separate from the unchanged $100,000 Alpaca paper account. The backend suite now has 25 passing tests. See PRE_RESUME_CHECK.md for the live-loop timing correction and exact test limits.

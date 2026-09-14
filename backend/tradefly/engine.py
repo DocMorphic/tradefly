@@ -143,16 +143,32 @@ class Engine:
         end=now-timedelta(seconds=10) # Give completed bars time to arrive.
         start=now-timedelta(days=7)
         calendar=self.broker.calendar(start.astimezone(NY).date().isoformat(),now.astimezone(NY).date().isoformat())
+        # A bar can normally be several minutes old between boundaries. Only
+        # declare the feed stale when a newly expected completed bar is missing.
+        expected_close=datetime.fromtimestamp(int(end.timestamp())//300*300,UTC)
+        session=next((day for day in calendar if day['date']==now.astimezone(NY).date().isoformat()),None)
+        if not session:
+            self.pause('Market clock and exchange calendar disagree');return
+        session_open=datetime.fromisoformat(session['date']+'T'+session['open']).replace(tzinfo=NY)
+        if expected_close<session_open+timedelta(minutes=5):
+            self.message='Waiting for the first completed regular-session bar';return
         bars=completed_bars(self.broker.bars(self.settings.symbol,start.isoformat(),end.isoformat()),calendar,end)
         if len(bars)<21: self.pause('Insufficient completed IEX bars');return
         bar=bars[-1];close=instant(bar['t'])+timedelta(minutes=5)
         self.last_bar=bar
-        if (now-close).total_seconds()>90: self.pause('Latest completed bar is stale');return
+        if close<expected_close:
+            if (now-expected_close).total_seconds()>90:
+                self.pause('Expected completed bar is missing; market feed is stale')
+            else:
+                self.message='Waiting for the latest completed IEX bar to arrive'
+            return
         if close<=self.started: return
         if self.ledger.has_bar(bar['t']):
             recorded=next(d for d in self.ledger.decisions() if d['bar']['t']==bar['t'])
             if recorded['bar']!=bar: self.pause('A processed market bar was corrected')
             return
+        if (now-close).total_seconds()>90:
+            self.pause('New decision bar arrived too late');return
         previous_time=self.ledger.get('last_processed_bar')
         if previous_time and instant(previous_time)+timedelta(minutes=5)>self.started and instant(bar['t']).astimezone(NY).date()==instant(previous_time).astimezone(NY).date() and instant(bar['t'])-instant(previous_time)>timedelta(minutes=5):
             self.pause('Missed bars; resume explicitly to skip the backlog');return

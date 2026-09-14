@@ -28,7 +28,7 @@ Local `.env`: `ALPACA_PAPER_API_KEY`, `ALPACA_PAPER_SECRET_KEY`. Local `.env.bri
 
 ## Execution behavior
 
-A new completed bar must be from a valid Alpaca exchange-calendar session (including early closes), aligned to five minutes, and no more than 90 seconds old. Twenty preceding bars supply causal normalization. The runner waits ten seconds after the end of a bar before treating it as available. Input corrections, missing bars, invalid account state, an unavailable control connection, or unresolved submissions stop new orders. After neural simulation, it refreshes the account and clock and expires decisions older than 150 seconds.
+A new completed bar must be from a valid Alpaca exchange-calendar session (including early closes), aligned to five minutes, and no more than 90 seconds old. The live loop distinguishes normal time between bar boundaries from a missing newly expected bar, and waits through the first five minutes after opening. Twenty preceding bars supply causal normalization. The runner waits ten seconds after the end of a bar before treating it as available. Input corrections, missing bars, invalid account state, an unavailable control connection, or unresolved submissions stop new orders. After neural simulation, it refreshes the account and clock and expires decisions older than 150 seconds.
 
 The decoder only receives measured BUY and SELL firing rates. Neither prices nor P&L enter it. The default is HOLD unless the higher pool reaches 20 Hz with at least an 8 Hz lead. There is no LLM or external strategy in the decision path.
 
