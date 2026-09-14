@@ -2395,7 +2395,9 @@ body > div:has(> [data-slot='popover-content']) {
 .holdings-scroll { overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable; }
 .holdings-scroll table { width:100%;border-collapse:separate;border-spacing:0; }
 .holdings-scroll thead th { position:sticky;top:0;background:#eceaf3;z-index:1;white-space:nowrap;border-bottom:1px solid #cbc4dc; }
-.holdings-scroll th button { padding:0;background:none;border:0;font:inherit;text-align:left;cursor:pointer; }
+.holdings-scroll th button { display:inline-flex;align-items:center;gap:5px;padding:0;background:none;border:0;font:inherit;text-align:left;cursor:pointer; }
+.holdings-scroll th button svg { width:14px;height:14px;flex-shrink:0;stroke-width:1.5; }
+.holdings-scroll th[aria-sort="none"] button svg { opacity:0.45; }
 .holdings-scroll td { white-space:nowrap;height:48px; }
 .holdings-scroll td[data-profit=true] { color:#237a60; }
 .holdings-scroll td[data-profit=false] { color:#a04460; }

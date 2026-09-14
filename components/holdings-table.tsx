@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import {
   NativeSelect,
   NativeSelectOption,
@@ -174,8 +175,16 @@ export function HoldingsTable({ snapshot }: { snapshot: BackendSnapshot }) {
                   }
                 >
                   <button type="button" onClick={() => choose(key)}>
-                    {label}{' '}
-                    {sort === key ? (direction === 'asc' ? '↑' : '↓') : '↕'}
+                    {label}
+                    {sort === key ? (
+                      direction === 'asc' ? (
+                        <ArrowUp aria-hidden="true" />
+                      ) : (
+                        <ArrowDown aria-hidden="true" />
+                      )
+                    ) : (
+                      <ArrowUpDown aria-hidden="true" />
+                    )}
                   </button>
                 </th>
               ))}
