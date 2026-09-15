@@ -10,6 +10,7 @@ export type NeuralActivity = {
   recorder_hash: string;
 };
 export type PaperDecision = {
+  fly_id?: string;
   symbol?: string;
   id: string;
   created_at: string;
@@ -46,6 +47,16 @@ export type PaperOrder = {
   broker: Record<string, string | null> | null;
 };
 export type BackendSnapshot = {
+  flies?: {
+    count: number;
+    mode: 'independent';
+    inflight: { fly_id: string; symbol: string }[];
+    completed: Record<string, number>;
+    evaluations_per_minute: number;
+    active_seconds: number;
+    queued_intents: number;
+    scope: string;
+  };
   market_check?: {
     frames: unknown[];
     fills: unknown[];

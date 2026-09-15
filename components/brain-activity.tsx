@@ -292,6 +292,7 @@ export function BrainActivity({
             )}
             {[...history].reverse().map((r) => (
               <NativeSelectOption key={r.id} value={r.id}>
+                {r.fly_id ? `${r.fly_id} · ` : ''}
                 {r.symbol} · {when(r.created_at)} · {r.action}
               </NativeSelectOption>
             ))}
@@ -312,7 +313,7 @@ export function BrainActivity({
         label={
           d.id === validation?.id
             ? 'Controlled validation replay'
-            : `${d.symbol} · ${when(d.created_at)}`
+            : `${d.fly_id ? d.fly_id + ' · ' : ''}${d.symbol} · ${when(d.created_at)}`
         }
       />
       {d.id === validation?.id && (

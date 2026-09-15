@@ -569,6 +569,44 @@ export function EvidenceDesk({
             Availability does not mean every stock has been evaluated. A data
             gap is not HOLD.
           </p>
+          {s.flies && (
+            <section className="paper-fly-pool">
+              <div className="evidence-metrics">
+                <Metric label="Independent flies" value={num(s.flies.count)} />
+                <Metric
+                  label="Evaluations / minute"
+                  value={num(s.flies.evaluations_per_minute)}
+                />
+                <Metric
+                  label="Calculating now"
+                  value={num(s.flies.inflight.length)}
+                />
+                <Metric
+                  label="Intents awaiting account check"
+                  value={num(s.flies.queued_intents)}
+                />
+              </div>
+              <div className="paper-status-line">
+                {Array.from(
+                  { length: s.flies.count },
+                  (_, i) => `fly-${i + 1}`,
+                ).map((fly) => (
+                  <span key={fly}>
+                    {fly}{' '}
+                    <b>
+                      {s.flies!.inflight.find((p) => p.fly_id === fly)
+                        ?.symbol || (s.paused ? 'paused' : 'waiting')}
+                    </b>{' '}
+                    · {num(s.flies!.completed[fly] ?? 0)} evaluated
+                  </span>
+                ))}
+              </div>
+              <p>
+                {s.flies.scope} Rate is the average since resume, excluding
+                paused time; missing-data skips are not neural evaluations.
+              </p>
+            </section>
+          )}
           <div className="evidence-toolbar">
             <label>
               Search

@@ -54,6 +54,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--once',action='store_true',help='Verify read-only broker state and exit; never submits')
     parser.add_argument('--load-brain',action='store_true',help='Load a locally validated full network')
+    parser.add_argument('--flies',type=int,choices=(1,2),default=2,help='Independent brain processes; defaults to two on this local setup')
     parser.add_argument('--export',type=Path,help='Export complete locally recorded history and exit')
     args=parser.parse_args()
     settings=Settings.load()
@@ -61,7 +62,8 @@ def main():
     lock=(settings.database.parent/'worker.lock').open('w')
     try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError: raise SystemExit('A Tradefly worker is already running')
-    engine=MarketEngine(settings)
+    from .parallel_market import ParallelMarketEngine
+    engine=(ParallelMarketEngine if args.flies==2 else MarketEngine)(settings)
     if args.export:
         snapshot=engine.snapshot();snapshot['decisions']=engine.ledger.decisions();snapshot['orders']=engine.ledger.orders();snapshot['events']=engine.ledger.events(1000000)
         args.export.write_text(json.dumps(snapshot,indent=2));print('Export saved');return
@@ -69,13 +71,18 @@ def main():
         from .brain import FlyBrain
         report=settings.brain_dir/'validation.json'
         if report.exists() and json.loads(report.read_text()).get('passed'):
-            engine.brain=FlyBrain()
             checkpoint=settings.database.parent/'brain.checkpoint'
-            if checkpoint.exists() and not engine.fatal:
-                engine.brain.restore(checkpoint)
-                engine.brain.steps=engine.ledger.get('brain_steps') or 0
-            instrument(engine.brain)
-            print('Full brain loaded. Paper execution remains paused.',flush=True)
+            if args.flies==2:
+                if engine.fatal:raise SystemExit('Interrupted checkpoint requires recovery before loading flies')
+                from .fly_pool import FlyPool
+                engine.brain=FlyPool(settings.database.parent/'flies',checkpoint,args.flies)
+            else:
+                engine.brain=FlyBrain()
+                if checkpoint.exists() and not engine.fatal:
+                    engine.brain.restore(checkpoint)
+                    engine.brain.steps=engine.ledger.get('brain_steps') or 0
+                instrument(engine.brain)
+            print(f'{args.flies} full fly brain(s) loaded. Paper execution remains paused.',flush=True)
         else: print('Brain validation has not passed; monitoring only.',flush=True)
     bridge=Bridge(engine)
     engine.before_submit=bridge.before_submit
@@ -114,6 +121,9 @@ def main():
             if not running:break
             time.sleep(1)
     if not args.once: engine.pause('Worker stopped')
+    if args.flies==2 and engine.brain:
+        engine.brain.close()
+        engine.collect()
     bridge.client.close();engine.broker.close();engine.ledger.close()
 
 if __name__=='__main__': main()

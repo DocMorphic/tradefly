@@ -160,7 +160,11 @@ export function Decision({ d }: { d: PaperDecision }) {
     <div className="paper-decision">
       <div className="paper-title">
         <h3>
-          {d.symbol} {d.action} <span>· {time(d.bar.t)}</span>
+          {d.symbol} {d.action}{' '}
+          <span>
+            · {time(d.bar.t)}
+            {d.fly_id ? ` · ${d.fly_id}` : ''}
+          </span>
         </h3>
         <span>{d.feed.toUpperCase()} · completed bar</span>
       </div>
@@ -401,11 +405,13 @@ function MarketUniverse({ backend }: { backend: PaperBackend }) {
         />
       </div>
       <p className="paper-reason">
-        One shared brain sees stocks continuously. HOLD passes; BUY or SELL
-        produces an intent on the presented stock. The viewing order is fixed
-        without price rankings. Five minutes describes each input bar, not a
-        wait between stocks. Processing speed and data availability limit
-        coverage.
+        {backend.data.snapshot?.flies
+          ? `${backend.data.snapshot.flies.count} independent flies evaluate different stocks concurrently.`
+          : 'One shared brain sees stocks continuously.'}{' '}
+        HOLD passes; BUY or SELL produces an intent on the presented stock. The
+        viewing order is fixed without price rankings. Five minutes describes
+        each input bar, not a wait between stocks. Processing speed and data
+        availability limit coverage.
       </p>
       <label className="paper-select">
         Find any available symbol
@@ -606,6 +612,17 @@ export function PaperView({
                 />
               </div>
               <div className="paper-status-line">
+                {s.flies && (
+                  <>
+                    <span>
+                      Fly brains <b>{s.flies.count}</b>
+                    </span>
+                    <span>
+                      Evaluations / minute{' '}
+                      <b>{count(s.flies.evaluations_per_minute)}</b>
+                    </span>
+                  </>
+                )}
                 <span>
                   Brain{' '}
                   <b>

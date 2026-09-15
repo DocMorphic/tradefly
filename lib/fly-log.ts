@@ -25,14 +25,14 @@ export function decisionLog(d: PaperDecision, symbol: string): FlyLogEntry[] {
       ...base,
       id: d.id + ':neural',
       phase: 'neural',
-      text: `BUY pool ${num(d.neural.buy_hz)} Hz; SELL pool ${num(d.neural.sell_hz)} Hz. ${d.neural.active_neurons} neurons active in the readout window.`,
+      text: `${d.fly_id ? d.fly_id + ' · ' : ''}BUY pool ${num(d.neural.buy_hz)} Hz; SELL pool ${num(d.neural.sell_hz)} Hz. ${d.neural.active_neurons} neurons active in the readout window.`,
       raw: d.neural,
     },
     {
       ...base,
       id: d.id + ':decision',
       phase: 'decision',
-      text: `${d.action}: ${d.reason}.`,
+      text: `${d.fly_id ? d.fly_id + ' · ' : ''}${d.action}: ${d.reason}.`,
       raw: d,
     },
   ];

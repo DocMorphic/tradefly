@@ -4,7 +4,7 @@ A paper-trading experiment in which a simulated fruit fly connectome is the sole
 
 **Status: real paper backend implemented and connected; starts paused.** The desktop has separate Paper and Demo modes. The Paper mode receives the real Alpaca account, measured full-network neural decisions, order outcomes, and audit records from a local Python worker. See [backend setup and operation](docs/BACKEND.md), [brain implementation](docs/BRAIN.md), and [validation evidence](docs/VALIDATION.md).
 
-Run the worker with `uv sync --python 3.12`, then `npm run backend`. Keep the Mac awake. Use Paper → Resume in the private desktop after readiness checks pass. No live-money endpoint exists.
+Run the worker with `uv sync --python 3.12`, then `npm run backend`. The default is two independent flies; see [parallel operation and benchmark](docs/PARALLEL_FLIES.md). Keep the Mac awake. Use Paper → Resume in the private desktop after readiness checks pass. No live-money endpoint exists.
 
 ## Run the desktop
 
@@ -32,7 +32,7 @@ The first version uses fixed neural weights. It does not learn from profits, und
 ## Current defaults
 
 - FlyWire female v783 data, with the Shiu et al. Brian2 model as the reference implementation. This is distinct from the newer male CNS dataset; using the male map is a later explicit migration.
-- Every active, tradable US equity symbol returned by Alpaca (including ETFs). No handpicked shortlist. One shared brain continuously processes a neutral sensory tour; its measured output alone supplies each directional intent. Data gaps and unvisited stocks remain visible.
+- Every active, tradable US equity symbol returned by Alpaca (including ETFs). No handpicked shortlist. Two independent fly brains process different stocks in the same neutral sensory tour. Each measured neural output supplies its own directional intent; one coordinator serializes orders for the shared paper account. Data gaps and unvisited stocks remain visible.
 - Completed five-minute input bars during regular US sessions; several stocks can be evaluated per boundary. There is no five-minute sleep between symbols.
 - Real account cash comes from Alpaca (initially $100,000); historical replay and Demo use separate $10,000 ledgers. Long-only, $100 maximum intended order and 10% total portfolio entry exposure; no borrowing or shorting.
 - Historical replay and Alpaca paper-only integration are implemented. The worker starts paused.
