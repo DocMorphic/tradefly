@@ -40,6 +40,7 @@ import {
   keepTitleVisible,
   restoreAtPointer,
   type SnapZone,
+  type WorkspaceBounds,
 } from '@/lib/window-layout';
 
 type AppId =
@@ -451,6 +452,7 @@ function DesktopWindow({
 }) {
   const frame = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState<SnapZone | null>(null);
+  const animationFrame = useRef<number | null>(null);
   const drag = useRef<{
     pointer: number;
     startX: number;
@@ -464,6 +466,10 @@ function DesktopWindow({
     started: boolean;
     original: Win;
     target: SnapZone | null;
+    bounds: WorkspaceBounds;
+    clientX: number;
+    clientY: number;
+    position: { x: number; y: number };
   } | null>(null);
   function toggleMaximize() {
     const rect = frame.current?.getBoundingClientRect();
@@ -478,16 +484,75 @@ function DesktopWindow({
           },
     );
   }
+  function paintDrag() {
+    animationFrame.current = null;
+    const d = drag.current,
+      element = frame.current;
+    if (!d || !element) return;
+    if (!d.started) {
+      if (Math.hypot(d.clientX - d.startX, d.clientY - d.startY) < 4) return;
+      d.started = true;
+      if (d.original.maximized || d.original.snap) {
+        const restored = restoreAtPointer(
+          d.clientX,
+          d.clientY,
+          d.ratio,
+          d.titleOffset,
+          d.width,
+          d.bounds,
+        );
+        d.x = restored.x;
+        d.y = restored.y;
+        d.startX = d.clientX;
+        d.startY = d.clientY;
+      }
+      element.style.setProperty('--drag-width', `${d.width}px`);
+      element.style.setProperty('--drag-height', `${d.height}px`);
+      element.dataset.dragging = 'true';
+    }
+    d.position = keepTitleVisible(
+      d.x + d.clientX - d.startX,
+      d.y + d.clientY - d.startY,
+      d.width,
+      d.bounds,
+    );
+    element.style.setProperty('--drag-x', `${d.position.x}px`);
+    element.style.setProperty('--drag-y', `${d.position.y}px`);
+    const target = snapAt(d.clientX, d.clientY, d.bounds, d.target);
+    if (target !== d.target) {
+      d.target = target;
+      setPreview(target);
+    }
+  }
   function finishDrag(cancel = false) {
     const d = drag.current;
     if (!d) return;
+    if (animationFrame.current !== null)
+      cancelAnimationFrame(animationFrame.current);
+    animationFrame.current = null;
+    if (!cancel) paintDrag(); // Use the release position, even between animation frames.
     drag.current = null;
-    setPreview(null);
-    if (cancel && d.started) {
-      const { x, y, width, height, snap, maximized } = d.original;
-      update({ x, y, width, height, snap: snap ?? null, maximized });
-    } else if (d.started && d.target)
-      update({ snap: d.target, maximized: false });
+    flushSync(() => {
+      setPreview(null);
+      if (!cancel && d.started)
+        update({
+          ...d.position,
+          width: d.width,
+          height: d.height,
+          snap: d.target,
+          maximized: false,
+        });
+    });
+    if (frame.current) {
+      delete frame.current.dataset.dragging;
+      for (const name of [
+        '--drag-x',
+        '--drag-y',
+        '--drag-width',
+        '--drag-height',
+      ])
+        frame.current.style.removeProperty(name);
+    }
   }
   useEffect(() => {
     const cancel = (e: KeyboardEvent) => {
@@ -496,9 +561,13 @@ function DesktopWindow({
     const blur = () => finishDrag(true);
     window.addEventListener('keydown', cancel);
     window.addEventListener('blur', blur);
+    window.addEventListener('resize', blur);
     return () => {
       window.removeEventListener('keydown', cancel);
       window.removeEventListener('blur', blur);
+      window.removeEventListener('resize', blur);
+      if (animationFrame.current !== null)
+        cancelAnimationFrame(animationFrame.current);
     };
   }, []);
   const Icon = APPS[win.id].icon;
@@ -547,6 +616,8 @@ function DesktopWindow({
           onPointerDown={(e) => {
             if (
               e.button !== 0 ||
+              !e.isPrimary ||
+              drag.current ||
               (e.target as HTMLElement).closest('button') ||
               window.innerWidth < 800
             )
@@ -559,8 +630,8 @@ function DesktopWindow({
               pointer: e.pointerId,
               startX: e.clientX,
               startY: e.clientY,
-              x: win.x,
-              y: win.y,
+              x: rect.left - bounds.left,
+              y: rect.top - bounds.top,
               width: tiled
                 ? (win.width ?? Math.min(1060, bounds.width - 172))
                 : rect.width,
@@ -575,50 +646,33 @@ function DesktopWindow({
                 ...(!tiled ? { width: rect.width, height: rect.height } : {}),
               },
               target: null,
+              bounds: {
+                left: bounds.left,
+                top: bounds.top,
+                width: bounds.width,
+                height: bounds.height,
+              },
+              clientX: e.clientX,
+              clientY: e.clientY,
+              position: {
+                x: rect.left - bounds.left,
+                y: rect.top - bounds.top,
+              },
             };
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
           onPointerMove={(e) => {
             const d = drag.current;
             if (!d || d.pointer !== e.pointerId) return;
-            const bounds =
-              frame.current!.parentElement!.getBoundingClientRect();
-            if (!d.started) {
-              if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4)
-                return;
-              d.started = true;
-              if (d.original.maximized || d.original.snap) {
-                const restored = restoreAtPointer(
-                  e.clientX,
-                  e.clientY,
-                  d.ratio,
-                  d.titleOffset,
-                  d.width,
-                  bounds,
-                );
-                d.x = restored.x;
-                d.y = restored.y;
-                d.startX = e.clientX;
-                d.startY = e.clientY;
-              }
-            }
-            d.target = snapAt(e.clientX, e.clientY, bounds);
-            setPreview(d.target);
-            update({
-              ...keepTitleVisible(
-                d.x + e.clientX - d.startX,
-                d.y + e.clientY - d.startY,
-                d.width,
-                bounds,
-              ),
-              width: d.width,
-              height: d.height,
-              snap: null,
-              maximized: false,
-            });
+            d.clientX = e.clientX;
+            d.clientY = e.clientY;
+            if (animationFrame.current === null)
+              animationFrame.current = requestAnimationFrame(paintDrag);
           }}
           onPointerUp={(e) => {
             if (drag.current?.pointer !== e.pointerId) return;
+            drag.current.clientX = e.clientX;
+            drag.current.clientY = e.clientY;
             finishDrag();
             if (e.currentTarget.hasPointerCapture(e.pointerId))
               e.currentTarget.releasePointerCapture(e.pointerId);

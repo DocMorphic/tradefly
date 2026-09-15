@@ -16,11 +16,13 @@ export function snapAt(
   x: number,
   y: number,
   bounds: WorkspaceBounds,
+  previous: SnapZone | null = null,
 ): SnapZone | null {
   const px = x - bounds.left,
     py = y - bounds.top;
-  const edge = 28,
-    corner = Math.min(96, bounds.height * 0.2);
+  const edge = Math.min(64, bounds.width * 0.08),
+    cornerX = Math.min(160, bounds.width * 0.2),
+    cornerY = Math.min(160, bounds.height * 0.25);
   if (
     px < -edge ||
     px > bounds.width + edge ||
@@ -28,11 +30,24 @@ export function snapAt(
     py > bounds.height + 52
   )
     return null;
-  const side = px <= edge ? 'left' : px >= bounds.width - edge ? 'right' : null;
-  if (!side) return null;
-  if (py <= corner) return `top-${side}`;
-  if (py >= bounds.height - corner) return `bottom-${side}`;
-  return side;
+  const cornerSide =
+    px <= cornerX ? 'left' : px >= bounds.width - cornerX ? 'right' : null;
+  if (cornerSide && py <= cornerY) return `top-${cornerSide}`;
+  if (cornerSide && py >= bounds.height - cornerY)
+    return `bottom-${cornerSide}`;
+  // A selected zone has a slightly wider exit boundary, so a small hand
+  // movement cannot repeatedly switch the preview on and off.
+  if (previous) {
+    const right = previous.endsWith('right');
+    const distance = right ? bounds.width - px : px;
+    const tolerance = 24;
+    if (previous.includes('-')) {
+      const vertical = previous.startsWith('bottom') ? bounds.height - py : py;
+      if (distance <= cornerX + tolerance && vertical <= cornerY + tolerance)
+        return previous;
+    } else if (distance <= edge + tolerance) return previous;
+  }
+  return px <= edge ? 'left' : px >= bounds.width - edge ? 'right' : null;
 }
 
 // Percent-based geometry follows workspace resizes and leaves a shared 8px gutter.

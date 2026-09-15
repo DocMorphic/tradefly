@@ -26,6 +26,22 @@ test('crossing onto the desktop bars still reaches corners; leaving the app does
   const offset = { ...bounds, left: 100, top: 100 };
   assert.equal(snapAt(110, 500, offset), 'left');
 });
+test('corners accept a broad approach and edge halves do not require pixel precision', () => {
+  assert.equal(snapAt(140, 180, bounds), 'top-left');
+  assert.equal(snapAt(1300, 710, bounds), 'bottom-right');
+  assert.equal(snapAt(60, 400, bounds), 'left');
+  assert.equal(snapAt(1380, 400, bounds), 'right');
+  assert.equal(snapAt(300, 300, bounds), null);
+});
+test('snap targets remain stable across small movements but release beyond their tolerance', () => {
+  assert.equal(snapAt(175, 215, bounds), null);
+  assert.equal(snapAt(175, 215, bounds, 'top-left'), 'top-left');
+  assert.equal(snapAt(190, 230, bounds, 'top-left'), null);
+  assert.equal(snapAt(80, 400, bounds, 'left'), 'left');
+  assert.equal(snapAt(100, 400, bounds, 'left'), null);
+  assert.equal(snapAt(60, 100, bounds, 'left'), 'top-left');
+  assert.equal(snapAt(1400, 800, bounds, 'top-left'), 'bottom-right');
+});
 test('half and quarter tiles share exact gutters and stay within the workspace', () => {
   const evaluate = (value: string, total: number) =>
     value.startsWith('calc(50%')
