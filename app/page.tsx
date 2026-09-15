@@ -36,6 +36,8 @@ import {
 import { SESSION, metrics } from '@/lib/experiment';
 import {
   snapAt,
+  windowSnapAt,
+  floatingPlacement,
   snapStyle,
   keepTitleVisible,
   restoreAtPointer,
@@ -453,6 +455,7 @@ function DesktopWindow({
   const frame = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState<SnapZone | null>(null);
   const animationFrame = useRef<number | null>(null);
+  const lastDragEnded = useRef(-Infinity);
   const drag = useRef<{
     pointer: number;
     startX: number;
@@ -470,6 +473,9 @@ function DesktopWindow({
     clientX: number;
     clientY: number;
     position: { x: number; y: number };
+    pressX: number;
+    snapArmed: boolean;
+    blockedZones: (SnapZone | null)[];
   } | null>(null);
   function toggleMaximize() {
     const rect = frame.current?.getBoundingClientRect();
@@ -518,7 +524,25 @@ function DesktopWindow({
     );
     element.style.setProperty('--drag-x', `${d.position.x}px`);
     element.style.setProperty('--drag-y', `${d.position.y}px`);
-    const target = snapAt(d.clientX, d.clientY, d.bounds, d.target);
+    // Pulling a tile loose is a restore gesture. Do not snap it straight back
+    // into its starting zone until the pointer has actually left that zone.
+    const pointerZone = snapAt(d.clientX, d.clientY, d.bounds);
+    if (
+      !d.snapArmed &&
+      (pointerZone === null || !d.blockedZones.includes(pointerZone))
+    )
+      d.snapArmed = true;
+    const target = d.snapArmed
+      ? windowSnapAt(
+          d.clientX,
+          d.clientY,
+          d.bounds,
+          d.position.x,
+          d.width,
+          d.clientX - d.pressX,
+          d.target,
+        )
+      : null;
     if (target !== d.target) {
       d.target = target;
       setPreview(target);
@@ -532,13 +556,18 @@ function DesktopWindow({
     animationFrame.current = null;
     if (!cancel) paintDrag(); // Use the release position, even between animation frames.
     drag.current = null;
+    if (d.started) lastDragEnded.current = performance.now();
     flushSync(() => {
       setPreview(null);
       if (!cancel && d.started)
         update({
-          ...d.position,
-          width: d.width,
-          height: d.height,
+          ...floatingPlacement(
+            d.position.x,
+            d.position.y,
+            d.width,
+            d.height,
+            d.bounds,
+          ),
           snap: d.target,
           maximized: false,
         });
@@ -611,6 +640,7 @@ function DesktopWindow({
           className="titlebar"
           title="Drag to an edge for half screen, or a corner for quarter screen. Double-click to maximize or restore."
           onDoubleClick={(e) => {
+            if (performance.now() - lastDragEnded.current < 400) return;
             if (!(e.target as HTMLElement).closest('button')) toggleMaximize();
           }}
           onPointerDown={(e) => {
@@ -658,6 +688,12 @@ function DesktopWindow({
                 x: rect.left - bounds.left,
                 y: rect.top - bounds.top,
               },
+              pressX: e.clientX,
+              snapArmed: !tiled,
+              blockedZones: [
+                win.snap ?? null,
+                snapAt(e.clientX, e.clientY, bounds),
+              ],
             };
             e.currentTarget.setPointerCapture(e.pointerId);
           }}

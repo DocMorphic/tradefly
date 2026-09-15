@@ -63,6 +63,51 @@ export function snapStyle(zone: SnapZone) {
   };
 }
 
+// Dragging by the middle of a title bar can put the window against an edge
+// while the pointer is still well inside the desktop. Recognize that contact
+// only when the gesture is deliberately moving toward that edge.
+export function windowSnapAt(
+  x: number,
+  y: number,
+  bounds: WorkspaceBounds,
+  windowX: number,
+  width: number,
+  deltaX: number,
+  previous: SnapZone | null = null,
+): SnapZone | null {
+  const pointer = snapAt(x, y, bounds, previous);
+  if (pointer) return pointer;
+  if (
+    x < bounds.left ||
+    x > bounds.left + bounds.width ||
+    y < bounds.top - 48 ||
+    y > bounds.top + bounds.height + 52
+  )
+    return null;
+  if (deltaX <= -24 && windowX <= 12)
+    return snapAt(bounds.left + 1, y, bounds, previous);
+  if (deltaX >= 24 && windowX + width >= bounds.width - 12)
+    return snapAt(bounds.left + bounds.width - 1, y, bounds, previous);
+  return null;
+}
+
+export function floatingPlacement(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  bounds: WorkspaceBounds,
+) {
+  const w = Math.min(width, bounds.width - 16),
+    h = Math.min(height, bounds.height - 16);
+  return {
+    x: Math.max(8, Math.min(bounds.width - w - 8, x)),
+    y: Math.max(8, Math.min(bounds.height - h - 8, y)),
+    width: w,
+    height: h,
+  };
+}
+
 export function keepTitleVisible(
   x: number,
   y: number,

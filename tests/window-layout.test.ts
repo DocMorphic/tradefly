@@ -5,6 +5,8 @@ import {
   snapStyle,
   restoreAtPointer,
   keepTitleVisible,
+  windowSnapAt,
+  floatingPlacement,
 } from '../lib/window-layout.ts';
 
 const bounds = { left: 0, top: 40, width: 1440, height: 810 };
@@ -76,5 +78,36 @@ test('pulling a tile out retains the grab point and keeps its title accessible',
   assert.deepEqual(keepTitleVisible(2000, 2000, 1000, bounds), {
     x: 1200,
     y: 740,
+  });
+});
+
+test('a deliberate drag can snap the window edge without putting the pointer at the edge', () => {
+  assert.equal(snapAt(400, 100, bounds), null);
+  assert.equal(windowSnapAt(400, 100, bounds, 8, 1000, -150), 'top-left');
+  assert.equal(windowSnapAt(1000, 800, bounds, 436, 1000, 150), 'bottom-right');
+  assert.equal(windowSnapAt(400, 450, bounds, 8, 1000, -150), 'left');
+  assert.equal(windowSnapAt(400, 100, bounds, 8, 1000, 10), null);
+  assert.equal(windowSnapAt(400, 100, bounds, 8, 1000, 150), null);
+});
+
+test('restoring near the bottom preserves saved size and keeps the full window above the taskbar', () => {
+  assert.deepEqual(floatingPlacement(800, 700, 1000, 720, bounds), {
+    x: 432,
+    y: 82,
+    width: 1000,
+    height: 720,
+  });
+  const smaller = { left: 0, top: 40, width: 801, height: 617 };
+  assert.deepEqual(floatingPlacement(200, 300, 629, 601, smaller), {
+    x: 164,
+    y: 8,
+    width: 629,
+    height: 601,
+  });
+  assert.deepEqual(floatingPlacement(-100, -100, 1000, 720, smaller), {
+    x: 8,
+    y: 8,
+    width: 785,
+    height: 601,
   });
 });
