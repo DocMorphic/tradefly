@@ -1,5 +1,7 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
+import { TradingDashboard } from './trading-dashboard';
+import { demoTradingData } from '@/lib/trading-charts';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -428,15 +430,14 @@ export function ExperimentView({
   onInspect: (i: number) => void;
   onOpen: (id: Id) => void;
 }) {
+  const chartData = useMemo(() => demoTradingData(frames), [frames]);
   const [filter, setFilter] = useState('ALL'),
     [ledgerTab, setLedgerTab] = useState('decisions');
   const f = frames.at(-1)!,
     m = metrics(frames),
     s = frames[Math.min(selected, frames.length - 1)],
     o = outcome(frames, s.index);
-  const fills = f.trades,
-    latest = outcome(frames, f.index),
-    priceValue = f.quantity * f.price;
+  const fills = f.trades;
   function decisionTable(compact = false) {
     const rows = frames
       .filter((v) => compact || filter === 'ALL' || v.action === filter)
@@ -588,120 +589,19 @@ export function ExperimentView({
   if (id === 'overview')
     return (
       <>
-        {bar}
-        <div className="compact-heading">
-          <h1>Account overview</h1>
-          <button className="text-button" onClick={() => onOpen('notes')}>
-            Data & settings <Info size={14} />
-          </button>
-        </div>
-        <div className="stats-grid">
-          <Stat
-            label="Account value"
-            value={usd(f.equity)}
-            sub="Cash + position value"
-          />
-          <Stat
-            label="Net profit / loss"
-            value={signed(m.pnl)}
-            sub={`${pct(m.returnPct)} since session start`}
-          />
-          <Stat
-            label="Available cash"
-            value={usd(f.cash)}
-            sub={`${((f.cash / f.equity) * 100).toFixed(2)}% of account`}
-          />
-          <Stat
-            label="Position value"
-            value={usd(priceValue)}
-            sub={`${m.exposure.toFixed(2)}% exposure`}
-          />
-        </div>
-        <section className="holding-strip">
-          <span className="holding-symbol">
-            AAPL <small>Open position</small>
-          </span>
-          <span>
-            <Label name="Shares" /> <b>{f.quantity.toFixed(4)}</b>
-          </span>
-          <span>
-            <Label name="Average cost" />
-            <b>{m.averageCost === null ? '—' : usd(m.averageCost)}</b>
-          </span>
-          <span>
-            <Label name="Current price" />
-            <b>{usd(f.price)}</b>
-          </span>
-          <span>
-            <Label name="Open P&L" />
-            <b>{signed(m.unrealized)}</b>
-          </span>
-        </section>
-        <div className="overview-grid">
-          <section className="equity-section">
-            <div className="section-heading">
-              <h2>Cumulative P&L</h2>
-              <span className="muted">09:30–{f.time}</span>
-            </div>
-            <Plot frames={frames} onInspect={onInspect} />
-            <div className="mini-metrics">
-              <span>
-                <Label name="Realized P&L" />
-                <b>{signed(f.realized)}</b>
-              </span>
-              <span>
-                <Label name="Worst drawdown" />
-                <b>{pct(m.drawdown)}</b>
-              </span>
-              <span>
-                <Label name="Fees" />
-                <b>{usd(f.fees)}</b>
-              </span>
-            </div>
-          </section>
-          <section className="neural-preview">
-            <div className="section-heading">
-              <h2>Latest decision</h2>
-              <Badge action={f.action} />
-            </div>
-            <Rates frame={f} />
-            <Facts
-              rows={[
-                [
-                  'Lead',
-                  `${Math.abs(f.buyHz - f.sellHz).toFixed(1)} / 8.0 Hz`,
-                  'Absolute difference between BUY and SELL rates. At least 8 Hz is required.',
-                ],
-                ['Order status', latest.state, latest.reason],
-                ['Order maximum', usd(f.action === 'HOLD' ? 0 : 100)],
-              ]}
-            />
-            <button className="wide-link" onClick={() => onInspect(f.index)}>
-              See calculation <ArrowUpRight size={16} />
+        <TradingDashboard
+          data={chartData}
+          onTrace={(id) => onInspect(Number(id))}
+        />
+        <details className="trade-records">
+          <summary>Recent decisions · exact records</summary>
+          <div>
+            {decisionTable(true)}
+            <button className="text-button" onClick={() => onOpen('ledger')}>
+              Open full trade ledger
             </button>
-          </section>
-        </div>
-        <div className="activity-strip">
-          {[
-            ['BUY', m.buyDecisions],
-            ['SELL', m.sellDecisions],
-            ['HOLD', m.holdDecisions],
-            ['Filled', fills.length],
-            ['Blocked', m.blocked],
-            ['Pending', m.pending],
-          ].map(([label, value]) => (
-            <span key={label}>
-              <b>{value}</b> {label}
-            </span>
-          ))}
-        </div>
-        <div className="section-heading recent-heading">
-          <h2>Recent decisions</h2>
-          <button className="text-button" onClick={() => onOpen('ledger')}>
-            Full ledger <ArrowUpRight size={14} />
-          </button>
-        </div>
-        {decisionTable(true)}
+          </div>
+        </details>
       </>
     );
   if (id === 'brain')
@@ -860,78 +760,92 @@ export function ExperimentView({
   if (id === 'ledger')
     return (
       <>
-        {bar}
-        <div className="compact-heading">
-          <h1>Trade ledger</h1>
-          <div className="export-actions">
-            <Export
-              label="Decisions CSV"
-              onClick={() =>
-                save('tradefly-decisions.csv', decisionsCsv(frames), 'text/csv')
-              }
-            />
-            <Export
-              label="Fills CSV"
-              onClick={() =>
-                save('tradefly-fills.csv', csv(frames), 'text/csv')
-              }
-            />
-          </div>
-        </div>
-        <div className="activity-strip">
-          {[
-            ['Decisions', frames.length],
-            ['Filled', fills.length],
-            ['Blocked', m.blocked],
-            ['Pending', m.pending],
-            ['No order', m.holdDecisions],
-          ].map(([k, v]) => (
-            <span key={k}>
-              <b>{v}</b> {k}
-            </span>
-          ))}
-        </div>
-        <Tabs
-          value={ledgerTab}
-          onValueChange={(v) => setLedgerTab(String(v))}
-          className="filter-tabs ledger-tabs"
-        >
-          <TabsList>
-            <TabsTrigger value="decisions">
-              Decisions ({frames.length})
-            </TabsTrigger>
-            <TabsTrigger value="fills">
-              Executed fills ({fills.length})
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="decisions">
+        <TradingDashboard
+          data={chartData}
+          view="ledger"
+          onTrace={(id) => onInspect(Number(id))}
+        />
+        <details className="trade-records">
+          <summary>Trade ledger · all decisions and fills</summary>
+          <div>
+            {bar}
+            <div className="compact-heading">
+              <h1>Trade ledger</h1>
+              <div className="export-actions">
+                <Export
+                  label="Decisions CSV"
+                  onClick={() =>
+                    save(
+                      'tradefly-decisions.csv',
+                      decisionsCsv(frames),
+                      'text/csv',
+                    )
+                  }
+                />
+                <Export
+                  label="Fills CSV"
+                  onClick={() =>
+                    save('tradefly-fills.csv', csv(frames), 'text/csv')
+                  }
+                />
+              </div>
+            </div>
+            <div className="activity-strip">
+              {[
+                ['Decisions', frames.length],
+                ['Filled', fills.length],
+                ['Blocked', m.blocked],
+                ['Pending', m.pending],
+                ['No order', m.holdDecisions],
+              ].map(([k, v]) => (
+                <span key={k}>
+                  <b>{v}</b> {k}
+                </span>
+              ))}
+            </div>
             <Tabs
-              value={filter}
-              onValueChange={(v) => setFilter(String(v))}
-              className="filter-tabs"
+              value={ledgerTab}
+              onValueChange={(v) => setLedgerTab(String(v))}
+              className="filter-tabs ledger-tabs"
             >
               <TabsList>
-                {['ALL', 'BUY', 'SELL', 'HOLD'].map((v) => (
-                  <TabsTrigger key={v} value={v}>
-                    {v === 'ALL' ? 'All' : v}
-                  </TabsTrigger>
-                ))}
+                <TabsTrigger value="decisions">
+                  Decisions ({frames.length})
+                </TabsTrigger>
+                <TabsTrigger value="fills">
+                  Executed fills ({fills.length})
+                </TabsTrigger>
               </TabsList>
-              {['ALL', 'BUY', 'SELL', 'HOLD'].map((v) => (
-                <TabsContent key={v} value={v}>
-                  {decisionTable()}
-                </TabsContent>
-              ))}
+              <TabsContent value="decisions">
+                <Tabs
+                  value={filter}
+                  onValueChange={(v) => setFilter(String(v))}
+                  className="filter-tabs"
+                >
+                  <TabsList>
+                    {['ALL', 'BUY', 'SELL', 'HOLD'].map((v) => (
+                      <TabsTrigger key={v} value={v}>
+                        {v === 'ALL' ? 'All' : v}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  {['ALL', 'BUY', 'SELL', 'HOLD'].map((v) => (
+                    <TabsContent key={v} value={v}>
+                      {decisionTable()}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </TabsContent>
+              <TabsContent value="fills">
+                {fillTable()}
+                <p className="table-footnote">
+                  Fees and slippage are already included in returns. “—” means a
+                  buy has no realized sale P&L.
+                </p>
+              </TabsContent>
             </Tabs>
-          </TabsContent>
-          <TabsContent value="fills">
-            {fillTable()}
-            <p className="table-footnote">
-              Fees and slippage are already included in returns. “—” means a buy
-              has no realized sale P&L.
-            </p>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </details>
       </>
     );
   if (id === 'analysis') {
@@ -939,180 +853,191 @@ export function ExperimentView({
       rm = metrics(RANDOM_SESSION.slice(0, frames.length));
     return (
       <>
-        {bar}
-        <div className="compact-heading">
-          <h1>Performance</h1>
-          <Export
-            label="Full report JSON"
-            onClick={() =>
-              save(
-                'tradefly-report.json',
-                JSON.stringify(report(frames), null, 2),
-                'application/json',
-              )
-            }
-          />
-        </div>
-        <div className="stats-grid">
-          <Stat
-            label="Net profit / loss"
-            value={signed(m.pnl)}
-            sub={pct(m.returnPct)}
-          />
-          <Stat
-            label="Worst drawdown"
-            value={pct(m.drawdown)}
-            sub="Largest loss from an earlier peak"
-          />
-          <Stat
-            label="Win rate"
-            value={m.winRate === null ? '—' : `${m.winRate.toFixed(1)}%`}
-            sub={`${m.winners} winning / ${m.closed} sell fills`}
-          />
-          <Stat
-            label="Fill rate"
-            value={m.fillRate === null ? '—' : `${m.fillRate.toFixed(1)}%`}
-            sub={`${fills.length} filled / ${fills.length + m.blocked} resolved intents`}
-          />
-        </div>
-        <section className="full-width-section">
-          <h2>Portfolio comparisons</h2>
-          <Table className="comparison">
-            <TableHeader>
-              <TableRow>
-                {[
-                  'Portfolio',
-                  'P&L / USD',
-                  'Return',
-                  'Drawdown',
-                  'Fills',
-                  'Costs included',
-                ].map((k) => (
-                  <TableHead key={k}>{k}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[
-                [
-                  'Demo portfolio',
-                  signed(m.pnl),
-                  pct(m.returnPct),
-                  pct(m.drawdown),
-                  String(fills.length),
-                  'Yes',
-                ],
-                [
-                  'Random control',
-                  signed(random.equity - 10000),
-                  pct(rm.returnPct),
-                  pct(rm.drawdown),
-                  String(random.trades.length),
-                  'Yes',
-                ],
-                [
-                  'Buy & hold · 10%',
-                  signed(f.benchmark - 10000),
-                  pct((f.benchmark / 10000 - 1) * 100),
-                  pct(referenceDrawdown(frames)),
-                  '—',
-                  'No · gross reference',
-                ],
-                ['Cash', usd(0), '0.000%', '0.000%', '0', 'No trades'],
-                [
-                  'Shuffled brain',
-                  'Not run',
-                  '—',
-                  '—',
-                  '—',
-                  'Brain disconnected',
-                ],
-              ].map((row) => (
-                <TableRow key={row[0]}>
-                  {row.map((v, i) => (
-                    <TableCell key={i}>{v}</TableCell>
+        <TradingDashboard
+          data={chartData}
+          view="analysis"
+          onTrace={(id) => onInspect(Number(id))}
+        />
+        <details className="trade-records">
+          <summary>Detailed metrics, comparisons & exports</summary>
+          <div>
+            {bar}
+            <div className="compact-heading">
+              <h1>Performance</h1>
+              <Export
+                label="Full report JSON"
+                onClick={() =>
+                  save(
+                    'tradefly-report.json',
+                    JSON.stringify(report(frames), null, 2),
+                    'application/json',
+                  )
+                }
+              />
+            </div>
+            <div className="stats-grid">
+              <Stat
+                label="Net profit / loss"
+                value={signed(m.pnl)}
+                sub={pct(m.returnPct)}
+              />
+              <Stat
+                label="Worst drawdown"
+                value={pct(m.drawdown)}
+                sub="Largest loss from an earlier peak"
+              />
+              <Stat
+                label="Win rate"
+                value={m.winRate === null ? '—' : `${m.winRate.toFixed(1)}%`}
+                sub={`${m.winners} winning / ${m.closed} sell fills`}
+              />
+              <Stat
+                label="Fill rate"
+                value={m.fillRate === null ? '—' : `${m.fillRate.toFixed(1)}%`}
+                sub={`${fills.length} filled / ${fills.length + m.blocked} resolved intents`}
+              />
+            </div>
+            <section className="full-width-section">
+              <h2>Portfolio comparisons</h2>
+              <Table className="comparison">
+                <TableHeader>
+                  <TableRow>
+                    {[
+                      'Portfolio',
+                      'P&L / USD',
+                      'Return',
+                      'Drawdown',
+                      'Fills',
+                      'Costs included',
+                    ].map((k) => (
+                      <TableHead key={k}>{k}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[
+                    [
+                      'Demo portfolio',
+                      signed(m.pnl),
+                      pct(m.returnPct),
+                      pct(m.drawdown),
+                      String(fills.length),
+                      'Yes',
+                    ],
+                    [
+                      'Random control',
+                      signed(random.equity - 10000),
+                      pct(rm.returnPct),
+                      pct(rm.drawdown),
+                      String(random.trades.length),
+                      'Yes',
+                    ],
+                    [
+                      'Buy & hold · 10%',
+                      signed(f.benchmark - 10000),
+                      pct((f.benchmark / 10000 - 1) * 100),
+                      pct(referenceDrawdown(frames)),
+                      '—',
+                      'No · gross reference',
+                    ],
+                    ['Cash', usd(0), '0.000%', '0.000%', '0', 'No trades'],
+                    [
+                      'Shuffled brain',
+                      'Not run',
+                      '—',
+                      '—',
+                      '—',
+                      'Brain disconnected',
+                    ],
+                  ].map((row) => (
+                    <TableRow key={row[0]}>
+                      {row.map((v, i) => (
+                        <TableCell key={i}>{v}</TableCell>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <p className="table-footnote">
-            Same price interval; different exposure and trade counts. The
-            buy-and-hold reference starts with $1,000 invested and excludes
-            costs.
-          </p>
-        </section>
-        <div className="analysis-grid">
-          <section>
-            <h2>Profit breakdown</h2>
-            <Facts
-              rows={[
-                ['Realized P&L', signed(f.realized)],
-                ['Open P&L', signed(m.unrealized)],
-                ['Net profit / loss', signed(m.pnl)],
-                ['Fees', usd(f.fees)],
-                ['Slippage', usd(m.slippage)],
-                [
-                  'Profitable sells',
-                  `${m.winners} / ${signed(m.grossProfit)}`,
-                  'Count and sum of positive realized sell-fill P&L.',
-                ],
-                [
-                  'Losing sells',
-                  `${m.losers} / ${signed(-m.grossLoss)}`,
-                  'Count and sum of negative realized sell-fill P&L.',
-                ],
-                ['Breakeven sells', String(m.breakeven)],
-                [
-                  'Profit factor',
-                  m.profitFactor === null
-                    ? '— (no realized losses)'
-                    : m.profitFactor.toFixed(2),
-                ],
-                [
-                  'Mean sell P&L',
-                  m.meanSellPnl === null
-                    ? '— (no sells)'
-                    : signed(m.meanSellPnl),
-                  'Total realized P&L ÷ number of sell fills.',
-                ],
-              ]}
-            />
-          </section>
-          <section>
-            <h2>Trading efficiency</h2>
-            <Facts
-              rows={[
-                [
-                  'Total traded value',
-                  usd(m.tradedNotional),
-                  'Sum of executed shares × fill price for all buy and sell orders.',
-                ],
-                ['Turnover', `${m.turnover.toFixed(2)}%`],
-                ['Exposure', `${m.exposure.toFixed(2)}%`],
-                [
-                  'BUY / SELL / HOLD',
-                  `${m.buyDecisions} / ${m.sellDecisions} / ${m.holdDecisions}`,
-                ],
-                [
-                  'Filled / blocked / pending',
-                  `${fills.length} / ${m.blocked} / ${m.pending}`,
-                ],
-                [
-                  'Buy fills / sell fills',
-                  `${fills.filter((t) => t.action === 'BUY').length} / ${m.closed}`,
-                ],
-                ['Observation count', String(frames.length)],
-                ['Brain compute time', 'Unmeasured'],
-                ['Actual fly return', 'Unmeasured'],
-              ]}
-            />
-            <p className="source-note">
-              This is one synthetic session. Real profitability requires
-              connected brain outputs and repeated tests on unseen market data.
-            </p>
-          </section>
-        </div>
+                </TableBody>
+              </Table>
+              <p className="table-footnote">
+                Same price interval; different exposure and trade counts. The
+                buy-and-hold reference starts with $1,000 invested and excludes
+                costs.
+              </p>
+            </section>
+            <div className="analysis-grid">
+              <section>
+                <h2>Profit breakdown</h2>
+                <Facts
+                  rows={[
+                    ['Realized P&L', signed(f.realized)],
+                    ['Open P&L', signed(m.unrealized)],
+                    ['Net profit / loss', signed(m.pnl)],
+                    ['Fees', usd(f.fees)],
+                    ['Slippage', usd(m.slippage)],
+                    [
+                      'Profitable sells',
+                      `${m.winners} / ${signed(m.grossProfit)}`,
+                      'Count and sum of positive realized sell-fill P&L.',
+                    ],
+                    [
+                      'Losing sells',
+                      `${m.losers} / ${signed(-m.grossLoss)}`,
+                      'Count and sum of negative realized sell-fill P&L.',
+                    ],
+                    ['Breakeven sells', String(m.breakeven)],
+                    [
+                      'Profit factor',
+                      m.profitFactor === null
+                        ? '— (no realized losses)'
+                        : m.profitFactor.toFixed(2),
+                    ],
+                    [
+                      'Mean sell P&L',
+                      m.meanSellPnl === null
+                        ? '— (no sells)'
+                        : signed(m.meanSellPnl),
+                      'Total realized P&L ÷ number of sell fills.',
+                    ],
+                  ]}
+                />
+              </section>
+              <section>
+                <h2>Trading efficiency</h2>
+                <Facts
+                  rows={[
+                    [
+                      'Total traded value',
+                      usd(m.tradedNotional),
+                      'Sum of executed shares × fill price for all buy and sell orders.',
+                    ],
+                    ['Turnover', `${m.turnover.toFixed(2)}%`],
+                    ['Exposure', `${m.exposure.toFixed(2)}%`],
+                    [
+                      'BUY / SELL / HOLD',
+                      `${m.buyDecisions} / ${m.sellDecisions} / ${m.holdDecisions}`,
+                    ],
+                    [
+                      'Filled / blocked / pending',
+                      `${fills.length} / ${m.blocked} / ${m.pending}`,
+                    ],
+                    [
+                      'Buy fills / sell fills',
+                      `${fills.filter((t) => t.action === 'BUY').length} / ${m.closed}`,
+                    ],
+                    ['Observation count', String(frames.length)],
+                    ['Brain compute time', 'Unmeasured'],
+                    ['Actual fly return', 'Unmeasured'],
+                  ]}
+                />
+                <p className="source-note">
+                  This is one synthetic session. Real profitability requires
+                  connected brain outputs and repeated tests on unseen market
+                  data.
+                </p>
+              </section>
+            </div>
+          </div>
+        </details>
       </>
     );
   }

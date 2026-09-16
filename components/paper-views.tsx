@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { TradingDashboard, SignalBars } from './trading-dashboard';
+import { paperTradingData } from '@/lib/trading-charts';
 import { Download, Pause, Play, RefreshCw } from 'lucide-react';
 import { HoldingsTable } from './holdings-table';
 import { useChartCursor } from './chart-cursor';
@@ -168,110 +170,133 @@ export function Decision({ d }: { d: PaperDecision }) {
         </h3>
         <span>{d.feed.toUpperCase()} · completed bar</span>
       </div>
-      <div className="paper-stats">
-        <Stat
-          label="BUY pool"
-          value={`${count(d.neural.buy_hz)} Hz`}
-          note="MN9 · 1 neuron"
+      <section className="trade-card trade-decision-signal">
+        <h3>BUY vs SELL activity</h3>
+        <SignalBars
+          decision={{
+            id: d.id,
+            at: Date.parse(d.created_at),
+            symbol: d.symbol || '',
+            action: d.action,
+            buy: d.neural.buy_hz,
+            sell: d.neural.sell_hz,
+            reason: d.reason,
+            status: '',
+          }}
         />
-        <Stat
-          label="SELL pool"
-          value={`${count(d.neural.sell_hz)} Hz`}
-          note="DN1 / DN2 · mean per neuron"
-        />
-        <Stat
-          label="Winning lead"
-          value={`${count(Math.abs(d.neural.buy_hz - d.neural.sell_hz))} Hz`}
-          note="Requires ≥ 8 Hz and winner ≥ 20 Hz"
-        />
-        <Stat
-          label="Decision time"
-          value={`${count(d.neural.wall_seconds)} s`}
-          note={`${d.neural.window_ms} ms neural window`}
-        />
-      </div>
-      <p className="paper-reason">
-        {d.reason}. The BUY/SELL labels are assigned by this experiment.
-      </p>
-      <div className="paper-two">
-        <section>
-          <h4>Observed market</h4>
-          <dl>
-            <dt>Open / close</dt>
-            <dd>
-              {usd(d.bar.o)} / {usd(d.bar.c)}
-            </dd>
-            <dt>Low / high</dt>
-            <dd>
-              {usd(d.bar.l)} / {usd(d.bar.h)}
-            </dd>
-            <dt>IEX volume</dt>
-            <dd>{count(d.bar.v)} shares</dd>
-            <dt>Account equity</dt>
-            <dd>{usd(d.account.equity)}</dd>
-            <dt>Cash</dt>
-            <dd>{usd(d.account.cash)}</dd>
-            <dt>Shares held</dt>
-            <dd>{count(d.position.qty ?? 0)}</dd>
-          </dl>
-        </section>
-        <section>
-          <h4>Sensory input</h4>
-          <dl>
-            {Object.entries(d.stimulus_hz).map(([name, hz]) => (
-              <div className="paper-dl-row" key={name}>
-                <dt>{name.replaceAll('_', ' ')}</dt>
-                <dd>{count(hz)} Hz</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      </div>
-      <h4>Measured neural activity</h4>
-      <div className="paper-stats">
-        <Stat label="Window spikes" value={count(d.neural.spikes)} />
-        <Stat
-          label="Active neurons"
-          value={count(d.neural.active_neurons)}
-          note="During final readout window"
-        />
-        <Stat
-          label="Neural time"
-          value={`${count(d.neural.neural_time_ms)} ms`}
-        />
-        <Stat label="Readout window" value={`${d.neural.readout_ms} ms`} />
-      </div>
-      <div className="paper-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Readout</th>
-              <th>FlyWire neuron ID</th>
-              <th>Spikes</th>
-              <th>Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(d.neural.output_neurons).flatMap(
-              ([pool, neurons]) =>
-                neurons.map((n) => (
-                  <tr key={n.id}>
-                    <td>{pool.toUpperCase()}</td>
-                    <td>
-                      <code>{n.id}</code>
-                    </td>
-                    <td>{n.spikes}</td>
-                    <td>{count(n.hz)} Hz</td>
-                  </tr>
-                )),
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Raw
-        value={d}
-        label="Complete decision, neural state ID and input record"
-      />
+        <p className="trade-one-line">
+          {d.reason}. BUY and SELL are the experiment’s assigned output labels.
+        </p>
+      </section>
+      <details className="trade-records">
+        <summary>Market inputs, timings & complete neural measurements</summary>
+        <div>
+          <div className="paper-stats">
+            <Stat
+              label="BUY pool"
+              value={`${count(d.neural.buy_hz)} Hz`}
+              note="MN9 · 1 neuron"
+            />
+            <Stat
+              label="SELL pool"
+              value={`${count(d.neural.sell_hz)} Hz`}
+              note="DN1 / DN2 · mean per neuron"
+            />
+            <Stat
+              label="Winning lead"
+              value={`${count(Math.abs(d.neural.buy_hz - d.neural.sell_hz))} Hz`}
+              note="Requires ≥ 8 Hz and winner ≥ 20 Hz"
+            />
+            <Stat
+              label="Decision time"
+              value={`${count(d.neural.wall_seconds)} s`}
+              note={`${d.neural.window_ms} ms neural window`}
+            />
+          </div>
+          <p className="paper-reason">
+            {d.reason}. The BUY/SELL labels are assigned by this experiment.
+          </p>
+          <div className="paper-two">
+            <section>
+              <h4>Observed market</h4>
+              <dl>
+                <dt>Open / close</dt>
+                <dd>
+                  {usd(d.bar.o)} / {usd(d.bar.c)}
+                </dd>
+                <dt>Low / high</dt>
+                <dd>
+                  {usd(d.bar.l)} / {usd(d.bar.h)}
+                </dd>
+                <dt>IEX volume</dt>
+                <dd>{count(d.bar.v)} shares</dd>
+                <dt>Account equity</dt>
+                <dd>{usd(d.account.equity)}</dd>
+                <dt>Cash</dt>
+                <dd>{usd(d.account.cash)}</dd>
+                <dt>Shares held</dt>
+                <dd>{count(d.position.qty ?? 0)}</dd>
+              </dl>
+            </section>
+            <section>
+              <h4>Sensory input</h4>
+              <dl>
+                {Object.entries(d.stimulus_hz).map(([name, hz]) => (
+                  <div className="paper-dl-row" key={name}>
+                    <dt>{name.replaceAll('_', ' ')}</dt>
+                    <dd>{count(hz)} Hz</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </div>
+          <h4>Measured neural activity</h4>
+          <div className="paper-stats">
+            <Stat label="Window spikes" value={count(d.neural.spikes)} />
+            <Stat
+              label="Active neurons"
+              value={count(d.neural.active_neurons)}
+              note="During final readout window"
+            />
+            <Stat
+              label="Neural time"
+              value={`${count(d.neural.neural_time_ms)} ms`}
+            />
+            <Stat label="Readout window" value={`${d.neural.readout_ms} ms`} />
+          </div>
+          <div className="paper-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Readout</th>
+                  <th>FlyWire neuron ID</th>
+                  <th>Spikes</th>
+                  <th>Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(d.neural.output_neurons).flatMap(
+                  ([pool, neurons]) =>
+                    neurons.map((n) => (
+                      <tr key={n.id}>
+                        <td>{pool.toUpperCase()}</td>
+                        <td>
+                          <code>{n.id}</code>
+                        </td>
+                        <td>{n.spikes}</td>
+                        <td>{count(n.hz)} Hz</td>
+                      </tr>
+                    )),
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Raw
+            value={d}
+            label="Complete decision, neural state ID and input record"
+          />
+        </div>
+      </details>
     </div>
   );
 }
@@ -477,6 +502,7 @@ export function PaperView({
 }) {
   const { data, error, stale, busy, command } = backend,
     s = data.snapshot;
+  const charts = useMemo(() => (s ? paperTradingData(s) : null), [s]);
   const [selected, setSelected] = useState<string | null>(null);
   const decision =
     s?.decisions.find((d) => d.id === selected) ?? s?.decisions.at(-1);
@@ -571,81 +597,10 @@ export function PaperView({
               These are saved readings. The backend has not checked in recently.
             </p>
           )}
-          {id === 'overview' && (
+          {id === 'overview' && charts && (
             <>
-              <div className="paper-title">
-                <h2>Paper account</h2>
-                <span>
-                  {s.universe?.total ?? s.watchlist?.length ?? 0} symbols ·{' '}
-                  {s.feed.toUpperCase()} · USD
-                </span>
-              </div>
-              <div className="paper-stats">
-                <Stat
-                  label="Account equity"
-                  value={usd(s.account.equity)}
-                  note="Reported by Alpaca"
-                />
-                <Stat
-                  label="Equity change"
-                  value={usd(s.equity_change_usd)}
-                  note={`Since ${time(s.baseline?.at)}`}
-                />
-                <Stat
-                  label="Cash"
-                  value={usd(s.account.cash)}
-                  note="Sizing uses cash, not margin buying power"
-                />
-                <Stat
-                  label="Position value"
-                  value={
-                    s.broker.connected
-                      ? usd(
-                          s.positions.reduce(
-                            (sum, p) => sum + Number(p.market_value),
-                            0,
-                          ),
-                        )
-                      : '—'
-                  }
-                  note={`${s.positions.length} open positions`}
-                />
-              </div>
-              <div className="paper-status-line">
-                {s.flies && (
-                  <>
-                    <span>
-                      Fly brains <b>{s.flies.count}</b>
-                    </span>
-                    <span>
-                      Evaluations / minute{' '}
-                      <b>{count(s.flies.evaluations_per_minute)}</b>
-                    </span>
-                  </>
-                )}
-                <span>
-                  Brain{' '}
-                  <b>
-                    {s.brain.loaded
-                      ? s.brain.ready
-                        ? 'validated & loaded'
-                        : 'not validated'
-                      : 'not loaded'}
-                  </b>
-                </span>
-                <span>
-                  Market <b>{s.market.is_open ? 'open' : 'closed'}</b>
-                </span>
-                <span>
-                  Decisions <b>{count(s.decision_count)}</b>
-                </span>
-                <span>
-                  Order cap <b>$100</b>
-                </span>
-              </div>
-              <p className="paper-reason">{s.message}</p>
               {!!s.blockers.length && (
-                <details className="paper-blockers" open>
+                <details className="paper-blockers">
                   <summary>
                     {s.blockers.length} readiness checks need attention
                   </summary>
@@ -656,29 +611,39 @@ export function PaperView({
                   </ul>
                 </details>
               )}
-              <p className="paper-reason">
-                Next stock: <b>{s.next_symbol ?? s.symbol}</b> · All{' '}
-                {count(s.universe?.total)} available US equity symbols. Inspect
-                coverage in Data &amp; definitions.
-              </p>
-              <HoldingsTable snapshot={s} />
-              <h3>Latest decision</h3>
-              {decision ? (
-                <>
-                  <button
-                    className="evidence-link"
-                    onClick={() => onTrace?.(decision.id)}
-                  >
-                    Follow this decision ↗
-                  </button>
-                  <Decision d={decision} />
-                </>
-              ) : (
-                <Empty>
-                  No measured market decisions yet. Nothing in this view is
-                  taken from the demo.
-                </Empty>
-              )}
+              <TradingDashboard data={charts} onTrace={onTrace} />
+              <details className="trade-records">
+                <summary>
+                  Holdings · exact values, sorting & date filters
+                </summary>
+                <div>
+                  <HoldingsTable snapshot={s} />
+                </div>
+              </details>
+              <details className="trade-records">
+                <summary>
+                  Latest decision · full explanation & neural record
+                </summary>
+                <div>
+                  {decision ? (
+                    <Decision d={decision} />
+                  ) : (
+                    <Empty>No recorded decision yet.</Empty>
+                  )}
+                </div>
+              </details>
+              <details className="trade-records">
+                <summary>Worker status & trading limits</summary>
+                <div>
+                  <p>{s.message}</p>
+                  <p>
+                    {s.flies?.count ?? 1} flies · next stock{' '}
+                    {s.next_symbol ?? s.symbol} ·{' '}
+                    {s.universe?.total ?? s.watchlist?.length ?? 0} available
+                    symbols · order cap {usd(s.limits.max_order_usd)}
+                  </p>
+                </div>
+              </details>
             </>
           )}
           {id === 'brain' && (
@@ -768,246 +733,278 @@ export function PaperView({
           )}
           {id === 'ledger' && (
             <>
-              <div className="paper-title">
-                <h2>Paper order ledger</h2>
-                <span>Broker outcomes · {s.orders.length} loaded</span>
-              </div>
-              <div className="paper-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Submitted</th>
-                      <th>Side</th>
-                      <th>Status</th>
-                      <th>Requested</th>
-                      <th>Filled shares</th>
-                      <th>Average fill</th>
-                      <th>Fill value</th>
-                      <th>Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.orders.map((o) => (
-                      <tr key={o.client_id}>
-                        <td>{time(o.broker?.submitted_at)}</td>
-                        <td>{String(o.payload.side).toUpperCase()}</td>
-                        <td>{o.status}</td>
-                        <td>
-                          {o.payload.notional
-                            ? usd(o.payload.notional)
-                            : `${count(o.payload.qty)} shares`}
-                        </td>
-                        <td>{count(o.broker?.filled_qty)}</td>
-                        <td>{usd(o.broker?.filled_avg_price)}</td>
-                        <td>
-                          {o.broker?.filled_avg_price
-                            ? usd(
-                                Number(o.broker.filled_qty) *
-                                  Number(o.broker.filled_avg_price),
-                              )
-                            : '—'}
-                        </td>
-                        <td>
-                          <button
-                            className="evidence-link"
-                            onClick={() => onTrace?.(o.decision_id)}
-                          >
-                            Trace ↗
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!s.orders.length && <Empty>No paper orders submitted.</Empty>}
-              </div>
-              <h3>Decision trail</h3>
-              <div className="paper-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Bar</th>
-                      <th>Action</th>
-                      <th>BUY Hz</th>
-                      <th>SELL Hz</th>
-                      <th>Close</th>
-                      <th>Order outcome</th>
-                      <th>Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.decisions.map((d) => (
-                      <tr key={d.id}>
-                        <td>{time(d.bar.t)}</td>
-                        <td>
-                          {d.symbol || s.symbol} · {d.action}
-                        </td>
-                        <td>{count(d.neural.buy_hz)}</td>
-                        <td>{count(d.neural.sell_hz)}</td>
-                        <td>{usd(d.bar.c)}</td>
-                        <td>
-                          {s.orders.find((o) => o.decision_id === d.id)
-                            ?.status ??
-                            (d.action === 'HOLD'
-                              ? 'No order'
-                              : 'No submission · see events')}
-                        </td>
-                        <td>
-                          <button
-                            className="evidence-link"
-                            onClick={() => onTrace?.(d.id)}
-                          >
-                            Replay ↗
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Raw
-                value={s.orders}
-                label="Order IDs, requests and actual broker records"
-              />
-              <h3>Execution events</h3>
-              {s.events.map((e) => (
-                <details className="paper-event" key={e.id}>
-                  <summary>
-                    <span>{time(e.at)}</span> {e.kind.replaceAll('_', ' ')}
-                  </summary>
-                  <pre>{JSON.stringify(e.data, null, 2)}</pre>
-                </details>
-              ))}
+              {charts && (
+                <TradingDashboard
+                  data={charts}
+                  view="ledger"
+                  onTrace={onTrace}
+                />
+              )}
+              <details className="trade-records">
+                <summary>All orders, decisions & execution records</summary>
+                <div>
+                  <div className="paper-title">
+                    <h2>Paper order ledger</h2>
+                    <span>Broker outcomes · {s.orders.length} loaded</span>
+                  </div>
+                  <div className="paper-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Submitted</th>
+                          <th>Side</th>
+                          <th>Status</th>
+                          <th>Requested</th>
+                          <th>Filled shares</th>
+                          <th>Average fill</th>
+                          <th>Fill value</th>
+                          <th>Evidence</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {s.orders.map((o) => (
+                          <tr key={o.client_id}>
+                            <td>{time(o.broker?.submitted_at)}</td>
+                            <td>{String(o.payload.side).toUpperCase()}</td>
+                            <td>{o.status}</td>
+                            <td>
+                              {o.payload.notional
+                                ? usd(o.payload.notional)
+                                : `${count(o.payload.qty)} shares`}
+                            </td>
+                            <td>{count(o.broker?.filled_qty)}</td>
+                            <td>{usd(o.broker?.filled_avg_price)}</td>
+                            <td>
+                              {o.broker?.filled_avg_price
+                                ? usd(
+                                    Number(o.broker.filled_qty) *
+                                      Number(o.broker.filled_avg_price),
+                                  )
+                                : '—'}
+                            </td>
+                            <td>
+                              <button
+                                className="evidence-link"
+                                onClick={() => onTrace?.(o.decision_id)}
+                              >
+                                Trace ↗
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!s.orders.length && (
+                      <Empty>No paper orders submitted.</Empty>
+                    )}
+                  </div>
+                  <h3>Decision trail</h3>
+                  <div className="paper-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Bar</th>
+                          <th>Action</th>
+                          <th>BUY Hz</th>
+                          <th>SELL Hz</th>
+                          <th>Close</th>
+                          <th>Order outcome</th>
+                          <th>Evidence</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {s.decisions.map((d) => (
+                          <tr key={d.id}>
+                            <td>{time(d.bar.t)}</td>
+                            <td>
+                              {d.symbol || s.symbol} · {d.action}
+                            </td>
+                            <td>{count(d.neural.buy_hz)}</td>
+                            <td>{count(d.neural.sell_hz)}</td>
+                            <td>{usd(d.bar.c)}</td>
+                            <td>
+                              {s.orders.find((o) => o.decision_id === d.id)
+                                ?.status ??
+                                (d.action === 'HOLD'
+                                  ? 'No order'
+                                  : 'No submission · see events')}
+                            </td>
+                            <td>
+                              <button
+                                className="evidence-link"
+                                onClick={() => onTrace?.(d.id)}
+                              >
+                                Replay ↗
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Raw
+                    value={s.orders}
+                    label="Order IDs, requests and actual broker records"
+                  />
+                  <h3>Execution events</h3>
+                  {s.events.map((e) => (
+                    <details className="paper-event" key={e.id}>
+                      <summary>
+                        <span>{time(e.at)}</span> {e.kind.replaceAll('_', ' ')}
+                      </summary>
+                      <pre>{JSON.stringify(e.data, null, 2)}</pre>
+                    </details>
+                  ))}
+                </div>
+              </details>
             </>
           )}
           {id === 'analysis' && (
             <>
-              <div className="paper-title">
-                <h2>Measured performance</h2>
-                <span>Alpaca paper account</span>
-              </div>
-              <div className="paper-stats">
-                <Stat
-                  label="Equity change"
-                  value={usd(s.equity_change_usd)}
-                  note="Current broker equity minus first observed equity"
+              {charts && (
+                <TradingDashboard
+                  data={charts}
+                  view="analysis"
+                  onTrace={onTrace}
                 />
-                <Stat
-                  label="Observed return"
-                  value={
-                    s.baseline && s.equity_change_usd !== null
-                      ? `${count((s.equity_change_usd / Number(s.baseline.equity)) * 100)}%`
-                      : '—'
-                  }
-                />
-                <Stat label="Decisions" value={count(s.decision_count)} />
-                <Stat
-                  label="Filled orders"
-                  value={count(
-                    s.orders.filter((o) => o.status === 'filled').length,
-                  )}
-                  note="Within loaded order records"
-                />
-              </div>
-              <div className="paper-two">
-                <section>
-                  <h3>What this measures</h3>
-                  <dl>
-                    <dt>Max observed drawdown</dt>
-                    <dd>{count(s.max_observed_drawdown_pct)}%</dd>
-                    <dt>Equity samples</dt>
-                    <dd>{count(s.equity_sample_count)}</dd>
-                    <dt>Starting observation</dt>
-                    <dd>{time(s.baseline?.at)}</dd>
-                    <dt>Starting equity</dt>
-                    <dd>{usd(s.baseline?.equity)}</dd>
-                    <dt>Open-position P&amp;L</dt>
-                    <dd>
-                      {s.broker.connected
-                        ? usd(
-                            s.positions.reduce(
-                              (sum, p) => sum + Number(p.unrealized_pl),
-                              0,
-                            ),
-                          )
-                        : '—'}
-                    </dd>
-                    <dt>Fees</dt>
-                    <dd>Not reported by this endpoint</dd>
-                    <dt>Slippage</dt>
-                    <dd>Not yet measured against quotes</dd>
-                    <dt>Held-out strategy results</dt>
-                    <dd>Not yet measured</dd>
-                    <dt>Matched controls</dt>
-                    <dd>Not yet run on real data</dd>
-                  </dl>
-                </section>
-                <section>
-                  <h3>Brain benchmark</h3>
-                  {s.brain.validation ? (
-                    <dl>
-                      <dt>Response / ablation check</dt>
-                      <dd>{s.brain.validation.passed ? 'Passed' : 'Failed'}</dd>
-                      <dt>Sugar → BUY readout</dt>
-                      <dd>{count(s.brain.validation.sugar.buy_hz)} Hz</dd>
-                      <dt>Mechanosensory → SELL</dt>
-                      <dd>{count(s.brain.validation.jon.sell_hz)} Hz</dd>
-                      <dt>Edges disabled → BUY / SELL</dt>
-                      <dd>
-                        {count(s.brain.validation.ablated.buy_hz)} /{' '}
-                        {count(s.brain.validation.ablated.sell_hz)} Hz
-                      </dd>
-                      <dt>Peak memory</dt>
-                      <dd>{count(s.brain.validation.peak_rss_gib)} GiB</dd>
-                    </dl>
-                  ) : (
-                    <p>No benchmark report received.</p>
-                  )}
-                </section>
-              </div>
-              <p className="paper-reason">
-                Account changes can include deposits or manual activity. Use a
-                dedicated paper account. The neural benchmark is an engineering
-                check, not a replication of all published results or evidence of
-                trading skill.
-              </p>
-              <Raw
-                value={s.brain.validation}
-                label="Complete benchmark report"
-              />
-              <EquityHistory s={s} />
-              {s.pilot_replay && (
-                <section>
-                  <h3>Historical integration pilot · {s.pilot_replay.date}</h3>
+              )}
+              <details className="trade-records">
+                <summary>
+                  Performance details, benchmark & historical pilot
+                </summary>
+                <div>
+                  <div className="paper-title">
+                    <h2>Measured performance</h2>
+                    <span>Alpaca paper account</span>
+                  </div>
                   <div className="paper-stats">
                     <Stat
-                      label="Real market bars"
-                      value={count(s.pilot_replay.frames.length)}
+                      label="Equity change"
+                      value={usd(s.equity_change_usd)}
+                      note="Current broker equity minus first observed equity"
                     />
                     <Stat
-                      label="Local simulated fills"
-                      value={count(s.pilot_replay.fills.length)}
+                      label="Observed return"
+                      value={
+                        s.baseline && s.equity_change_usd !== null
+                          ? `${count((s.equity_change_usd / Number(s.baseline.equity)) * 100)}%`
+                          : '—'
+                      }
                     />
+                    <Stat label="Decisions" value={count(s.decision_count)} />
                     <Stat
-                      label="Pilot P&L"
-                      value={usd(s.pilot_replay.net_pnl)}
-                    />
-                    <Stat
-                      label="Modeled fees"
-                      value={usd(s.pilot_replay.fees)}
+                      label="Filled orders"
+                      value={count(
+                        s.orders.filter((o) => o.status === 'filled').length,
+                      )}
+                      note="Within loaded order records"
                     />
                   </div>
-                  <p>{s.pilot_replay.scope}</p>
+                  <div className="paper-two">
+                    <section>
+                      <h3>What this measures</h3>
+                      <dl>
+                        <dt>Max observed drawdown</dt>
+                        <dd>{count(s.max_observed_drawdown_pct)}%</dd>
+                        <dt>Equity samples</dt>
+                        <dd>{count(s.equity_sample_count)}</dd>
+                        <dt>Starting observation</dt>
+                        <dd>{time(s.baseline?.at)}</dd>
+                        <dt>Starting equity</dt>
+                        <dd>{usd(s.baseline?.equity)}</dd>
+                        <dt>Open-position P&amp;L</dt>
+                        <dd>
+                          {s.broker.connected
+                            ? usd(
+                                s.positions.reduce(
+                                  (sum, p) => sum + Number(p.unrealized_pl),
+                                  0,
+                                ),
+                              )
+                            : '—'}
+                        </dd>
+                        <dt>Fees</dt>
+                        <dd>Not reported by this endpoint</dd>
+                        <dt>Slippage</dt>
+                        <dd>Not yet measured against quotes</dd>
+                        <dt>Held-out strategy results</dt>
+                        <dd>Not yet measured</dd>
+                        <dt>Matched controls</dt>
+                        <dd>Not yet run on real data</dd>
+                      </dl>
+                    </section>
+                    <section>
+                      <h3>Brain benchmark</h3>
+                      {s.brain.validation ? (
+                        <dl>
+                          <dt>Response / ablation check</dt>
+                          <dd>
+                            {s.brain.validation.passed ? 'Passed' : 'Failed'}
+                          </dd>
+                          <dt>Sugar → BUY readout</dt>
+                          <dd>{count(s.brain.validation.sugar.buy_hz)} Hz</dd>
+                          <dt>Mechanosensory → SELL</dt>
+                          <dd>{count(s.brain.validation.jon.sell_hz)} Hz</dd>
+                          <dt>Edges disabled → BUY / SELL</dt>
+                          <dd>
+                            {count(s.brain.validation.ablated.buy_hz)} /{' '}
+                            {count(s.brain.validation.ablated.sell_hz)} Hz
+                          </dd>
+                          <dt>Peak memory</dt>
+                          <dd>{count(s.brain.validation.peak_rss_gib)} GiB</dd>
+                        </dl>
+                      ) : (
+                        <p>No benchmark report received.</p>
+                      )}
+                    </section>
+                  </div>
+                  <p className="paper-reason">
+                    Account changes can include deposits or manual activity. Use
+                    a dedicated paper account. The neural benchmark is an
+                    engineering check, not a replication of all published
+                    results or evidence of trading skill.
+                  </p>
                   <Raw
-                    value={s.pilot_replay}
-                    label="Every pilot bar, measured neural decision and simulated fill"
+                    value={s.brain.validation}
+                    label="Complete benchmark report"
                   />
-                </section>
-              )}
-              <Raw
-                value={s.equity_history}
-                label="Equity sample values and timestamps"
-              />
+                  <EquityHistory s={s} />
+                  {s.pilot_replay && (
+                    <section>
+                      <h3>
+                        Historical integration pilot · {s.pilot_replay.date}
+                      </h3>
+                      <div className="paper-stats">
+                        <Stat
+                          label="Real market bars"
+                          value={count(s.pilot_replay.frames.length)}
+                        />
+                        <Stat
+                          label="Local simulated fills"
+                          value={count(s.pilot_replay.fills.length)}
+                        />
+                        <Stat
+                          label="Pilot P&L"
+                          value={usd(s.pilot_replay.net_pnl)}
+                        />
+                        <Stat
+                          label="Modeled fees"
+                          value={usd(s.pilot_replay.fees)}
+                        />
+                      </div>
+                      <p>{s.pilot_replay.scope}</p>
+                      <Raw
+                        value={s.pilot_replay}
+                        label="Every pilot bar, measured neural decision and simulated fill"
+                      />
+                    </section>
+                  )}
+                  <Raw
+                    value={s.equity_history}
+                    label="Equity sample values and timestamps"
+                  />
+                </div>
+              </details>
             </>
           )}
           {id === 'notes' && (
