@@ -44,7 +44,10 @@ export function trackWindowDrag(
     });
   // lostpointercapture does NOT end a drag. Window listeners keep tracking it
   // even if capture was revoked or the original title bar was rerendered.
-  listen('blur', () => finish());
+  listen('blur', (event) => {
+    // Focus moving between controls is not the browser losing focus.
+    if (event.target === events) finish();
+  });
   listen('resize', () => finish());
   listen('keydown', (event) => {
     if ((event as KeyboardEvent).key === 'Escape') {
