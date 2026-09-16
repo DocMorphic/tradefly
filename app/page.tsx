@@ -554,7 +554,11 @@ function DesktopWindow({
     if (animationFrame.current !== null)
       cancelAnimationFrame(animationFrame.current);
     animationFrame.current = null;
-    if (!cancel) paintDrag(); // Use the release position, even between animation frames.
+    // The last painted frame is the drop contract: commit the exact target
+    // shown to the user. Pointer-up coordinates can differ from the last move
+    // (especially with trackpads); do not silently re-test the zone on release.
+    // A very quick drag may finish before its first animation frame.
+    if (!cancel && !d.started) paintDrag();
     drag.current = null;
     if (d.started) lastDragEnded.current = performance.now();
     flushSync(() => {
@@ -588,10 +592,15 @@ function DesktopWindow({
       if (e.key === 'Escape') finishDrag(true);
     };
     const blur = () => finishDrag(true);
+    const release = (e: PointerEvent) => {
+      if (drag.current?.pointer === e.pointerId) finishDrag();
+    };
+    window.addEventListener('pointerup', release, true);
     window.addEventListener('keydown', cancel);
     window.addEventListener('blur', blur);
     window.addEventListener('resize', blur);
     return () => {
+      window.removeEventListener('pointerup', release, true);
       window.removeEventListener('keydown', cancel);
       window.removeEventListener('blur', blur);
       window.removeEventListener('resize', blur);
@@ -625,6 +634,7 @@ function DesktopWindow({
           aria-hidden="true"
         >
           <span>
+            Release to snap ·{' '}
             {preview.includes('-') ? 'Quarter screen' : 'Half screen'}
           </span>
         </div>
@@ -695,6 +705,7 @@ function DesktopWindow({
                 snapAt(e.clientX, e.clientY, bounds),
               ],
             };
+            e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
           onPointerMove={(e) => {
@@ -707,8 +718,6 @@ function DesktopWindow({
           }}
           onPointerUp={(e) => {
             if (drag.current?.pointer !== e.pointerId) return;
-            drag.current.clientX = e.clientX;
-            drag.current.clientY = e.clientY;
             finishDrag();
             if (e.currentTarget.hasPointerCapture(e.pointerId))
               e.currentTarget.releasePointerCapture(e.pointerId);

@@ -354,7 +354,6 @@ small {
   align-items: flex-end;
   justify-content: center;
   padding: 18px;
-  transition: left 120ms ease-out, top 120ms ease-out, width 120ms ease-out, height 120ms ease-out;
   animation: snap-preview-in 100ms ease-out;
 }
 @keyframes snap-preview-in { from { opacity: 0; } to { opacity: 1; } }

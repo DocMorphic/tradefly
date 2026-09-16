@@ -84,9 +84,13 @@ export function windowSnapAt(
     y > bounds.top + bounds.height + 52
   )
     return null;
-  if (deltaX <= -24 && windowX <= 12)
+  // Keep frame-contact previews through small reverse movements, just like
+  // pointer-based targets. A clear move away dismisses the outline.
+  const leftContact = previous?.endsWith('left') ? 36 : 12;
+  const rightContact = previous?.endsWith('right') ? 36 : 12;
+  if (deltaX <= -24 && windowX <= leftContact)
     return snapAt(bounds.left + 1, y, bounds, previous);
-  if (deltaX >= 24 && windowX + width >= bounds.width - 12)
+  if (deltaX >= 24 && windowX + width >= bounds.width - rightContact)
     return snapAt(bounds.left + bounds.width - 1, y, bounds, previous);
   return null;
 }

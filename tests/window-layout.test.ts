@@ -111,3 +111,24 @@ test('restoring near the bottom preserves saved size and keeps the full window a
     height: 601,
   });
 });
+
+test('frame-contact previews survive small hand movements and clear on a deliberate exit', () => {
+  assert.equal(windowSnapAt(400, 130, bounds, 8, 1060, -150), 'top-left');
+  assert.equal(
+    windowSnapAt(415, 130, bounds, 23, 1060, -135, 'top-left'),
+    'top-left',
+  );
+  assert.equal(
+    windowSnapAt(440, 130, bounds, 48, 1060, -110, 'top-left'),
+    null,
+  );
+  assert.equal(windowSnapAt(1000, 750, bounds, 372, 1060, 150), 'bottom-right');
+  assert.equal(
+    windowSnapAt(985, 750, bounds, 357, 1060, 135, 'bottom-right'),
+    'bottom-right',
+  );
+  assert.equal(
+    windowSnapAt(960, 750, bounds, 332, 1060, 110, 'bottom-right'),
+    null,
+  );
+});
