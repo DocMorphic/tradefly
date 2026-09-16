@@ -8,6 +8,8 @@ Run the worker with `uv sync --python 3.12`, then `npm run backend`. The default
 
 ## Run the desktop
 
+**Vercel deployment is supported.** See [the Vercel setup guide](docs/VERCEL.md) for the free Turso database, private owner login, environment variables and local worker connection. The checked-in `vercel.json` selects the Next.js build; existing Sites build commands still work.
+
 Use Node 22.18+ (24+ recommended for the test runner). Run `npm ci`, then `npm run dev`. `npm test` checks decision thresholds, accounting, execution timing, and metrics. `npm run build` produces the hosted application. See [desktop architecture and data semantics](docs/DESKTOP.md).
 
 The question: can a fixed biological network, given numerical market inputs through a transparent interface, produce interesting trading behavior?

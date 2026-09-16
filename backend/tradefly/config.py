@@ -3,12 +3,34 @@ from pathlib import Path
 import os
 import json
 import re
+from urllib.parse import urlsplit
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[2]
 PAPER_URL = 'https://paper-api.alpaca.markets'
 DATA_URL = 'https://data.alpaca.markets'
 SITE_URL = 'https://tradefly.andustry-0633.chatgpt.site'
+
+def bridge_target(config):
+    url = (config.get('TRADEFLY_SITE_URL') or SITE_URL).rstrip('/')
+    parsed = urlsplit(url)
+    local = parsed.hostname in ('localhost', '127.0.0.1') and parsed.scheme == 'http'
+    if (parsed.scheme != 'https' and not local) or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
+        raise ValueError('TRADEFLY_SITE_URL must be an HTTPS origin (or localhost for development)')
+    return url
+
+def bridge_headers(config):
+    url = bridge_target(config)
+    token = config.get('TRADEFLY_BRIDGE_TOKEN')
+    if not token: return None
+    headers = {'Authorization': 'Bearer ' + token}
+    if url == SITE_URL:
+        bypass = config.get('TRADEFLY_SITES_TOKEN')
+        if not bypass: return None
+        headers['OAI-Sites-Authorization'] = 'Bearer ' + bypass
+    elif config.get('TRADEFLY_VERCEL_BYPASS_TOKEN'):
+        headers['x-vercel-protection-bypass'] = config['TRADEFLY_VERCEL_BYPASS_TOKEN']
+    return headers
 
 @dataclass(frozen=True)
 class Settings:

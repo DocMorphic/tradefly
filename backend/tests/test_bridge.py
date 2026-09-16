@@ -1,6 +1,8 @@
 import httpx
 from datetime import datetime,timezone,timedelta
 from tradefly.runner import Bridge
+from tradefly.config import bridge_target,bridge_headers,SITE_URL
+import pytest
 
 class Engine:
     paused=True
@@ -39,3 +41,12 @@ def test_lost_control_connection_vetoes_submission():
     b,e=bridge();respond(b,'pause','initial');e.paused=False
     b.client=httpx.Client(transport=httpx.MockTransport(lambda _:httpx.Response(503)))
     assert not b.before_submit() and e.paused
+
+def test_vercel_target_keeps_sites_bypass_off_other_hosts():
+    config={'TRADEFLY_SITE_URL':'https://tradefly-test.vercel.app/','TRADEFLY_BRIDGE_TOKEN':'bridge','TRADEFLY_SITES_TOKEN':'private-sites-token'}
+    assert bridge_target(config)=='https://tradefly-test.vercel.app'
+    assert bridge_headers(config)=={'Authorization':'Bearer bridge'}
+    assert bridge_target({})==SITE_URL
+    assert bridge_headers({'TRADEFLY_BRIDGE_TOKEN':'bridge'}) is None
+    for url in ('http://untrusted.example','https://user:password@example.com','https://example.com/path','https://example.com?x=1'):
+        with pytest.raises(ValueError):bridge_target({'TRADEFLY_SITE_URL':url})

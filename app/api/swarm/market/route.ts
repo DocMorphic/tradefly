@@ -3,7 +3,8 @@ import { RobinhoodLive } from '@/lib/swarm/robinhood-live.mjs';
 export const dynamic = 'force-dynamic';
 const live = new RobinhoodLive();
 export async function GET(request: Request) {
-  if (!userAllowed(request)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await userAllowed(request)))
+    return json({ error: 'Unauthorized' }, 401);
   const u = new URL(request.url),
     kind = u.searchParams.get('kind') || 'tokens',
     address = u.searchParams.get('address') || '',

@@ -1,9 +1,5 @@
-import { env } from 'cloudflare:workers';
-
-type Runtime = { DB?: D1Database; TRADEFLY_BRIDGE_TOKEN?: string };
-export function runtime() {
-  return env as unknown as Runtime;
-}
+import { runtime } from '#tradefly-runtime';
+export { userAllowed, runtime } from '#tradefly-runtime';
 export function database() {
   const db = runtime().DB;
   if (!db) throw new Error('Backend storage is not configured');
@@ -14,9 +10,6 @@ export function json(value: unknown, status = 200) {
     status,
     headers: { 'Cache-Control': 'no-store' },
   });
-}
-export function userAllowed(request: Request) {
-  return Boolean(request.headers.get('oai-authenticated-user-id'));
 }
 export async function tokenAllowed(request: Request) {
   const token = runtime().TRADEFLY_BRIDGE_TOKEN;

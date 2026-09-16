@@ -2843,6 +2843,19 @@ body > div:has(> [data-slot='popover-content']) {
   line-height: 1.5;
   margin: 0 0 12px;
 }
+.owner-access-link { color: inherit; font-size: 13px; text-decoration: none; padding: 5px 8px; }
+.owner-access-link:hover { text-decoration: underline; }
+.owner-login { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #242041; color: #edeaf5; }
+.owner-login form { width: min(100%, 440px); padding: 32px; display: flex; flex-direction: column; gap: 16px; border: 1px solid #57506f; border-radius: 12px; background: #302a49; }
+.owner-wordmark { font: italic 42px Georgia, serif; }
+.owner-login h1 { font-size: 24px; margin: 0; }
+.owner-login p { color: #c7bfd9; font-size: 16px; line-height: 1.5; margin: 0 0 8px; }
+.owner-login label { font-size: 14px; }
+.owner-login input { width: 100%; border: 1px solid #77708d; border-radius: 5px; background: #211c32; padding: 12px; font-size: 16px; color: #fff; }
+.owner-login button { background: #c4b6f2; color: #211732; padding: 12px; border-radius: 5px; font-size: 16px; cursor: pointer; }
+.owner-login output { color: #f0bec9; font-size: 14px; line-height: 1.5; }
+.owner-login a { color: #d2c8ed; font-size: 14px; }
+.owner-login :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .trade-price-heading {
   display: flex;
   align-items: baseline;

@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 from dotenv import dotenv_values
 from .alpaca import BrokerError
-from .config import ROOT, SITE_URL, Settings
+from .config import ROOT, Settings, bridge_target, bridge_headers
 from .domain import now_iso, instant, UTC
 from .market import MarketEngine
 from .neural_activity import instrument, bounded_activity_snapshot
@@ -21,11 +21,9 @@ class Bridge:
         self.client=httpx.Client(timeout=12,follow_redirects=False)
         self.seen=None
     def exchange(self):
-        token=self.config.get('TRADEFLY_BRIDGE_TOKEN')
-        bypass=self.config.get('TRADEFLY_SITES_TOKEN')
-        if not token or not bypass: return False
-        response=self.client.post(SITE_URL+'/api/bridge',json=bounded_activity_snapshot(self.engine.snapshot()),headers={
-            'Authorization':'Bearer '+token,'OAI-Sites-Authorization':'Bearer '+bypass})
+        headers=bridge_headers(self.config)
+        if not headers: return False
+        response=self.client.post(bridge_target(self.config)+'/api/bridge',json=bounded_activity_snapshot(self.engine.snapshot()),headers=headers)
         if response.status_code!=200: return False
         command=response.json()
         # On startup acknowledge existing command, but never replay an old resume.

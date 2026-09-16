@@ -1,7 +1,9 @@
+import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, state, userAllowed } from '@/lib/server/backend-store';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
-  if (!userAllowed(request)) return json({ error: 'Sign in required' }, 401);
+  if (!(await userAllowed(request)))
+    return json({ error: 'Sign in required' }, 401);
   try {
     const row = await state();
     return json({
@@ -15,9 +17,9 @@ export async function GET(request: Request) {
   }
 }
 export async function POST(request: Request) {
-  if (!userAllowed(request)) return json({ error: 'Sign in required' }, 401);
-  if (request.headers.get('origin') !== new URL(request.url).origin)
-    return json({ error: 'Origin rejected' }, 403);
+  if (!(await userAllowed(request)))
+    return json({ error: 'Sign in required' }, 401);
+  if (!sameOrigin(request)) return json({ error: 'Origin rejected' }, 403);
   let command;
   let symbols: unknown;
   try {

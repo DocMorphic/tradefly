@@ -4,12 +4,11 @@ import json
 import re
 import signal
 import threading
-import time
 from datetime import datetime, timedelta
 import httpx
 from dotenv import dotenv_values
 from .alpaca import Alpaca, BrokerError
-from .config import ROOT, SITE_URL, Settings
+from .config import ROOT, Settings, bridge_target, bridge_headers
 from .domain import UTC, completed_bars, instant
 
 
@@ -62,13 +61,12 @@ def serve(stop=None):
         except BlockingIOError:
             return
         config = dotenv_values(ROOT / '.env.bridge')
-        token, bypass = config.get('TRADEFLY_BRIDGE_TOKEN'), config.get('TRADEFLY_SITES_TOKEN')
-        if not token or not bypass:
+        headers = bridge_headers(config)
+        if not headers:
             return
         broker = Alpaca(Settings.load())
         history = ChartHistory(broker)
-        url = SITE_URL + '/api/market-history/bridge'
-        headers = {'Authorization': 'Bearer ' + token, 'OAI-Sites-Authorization': 'Bearer ' + bypass}
+        url = bridge_target(config) + '/api/market-history/bridge'
         try:
             with httpx.Client(timeout=15, follow_redirects=False, headers=headers) as client:
                 while not stop.is_set():

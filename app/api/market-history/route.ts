@@ -1,3 +1,4 @@
+import { sameOrigin } from '@/lib/server/request-origin';
 import {
   database,
   json,
@@ -24,7 +25,7 @@ async function read(symbol: string) {
   });
 }
 export async function GET(request: Request) {
-  if (!userAllowed(request) && !(await tokenAllowed(request)))
+  if (!(await userAllowed(request)) && !(await tokenAllowed(request)))
     return json({ error: 'Sign in required' }, 401);
   const symbol = new URL(request.url).searchParams.get('symbol');
   if (!validChartSymbol(symbol))
@@ -32,10 +33,9 @@ export async function GET(request: Request) {
   return read(symbol);
 }
 export async function POST(request: Request) {
-  if (!userAllowed(request) && !(await tokenAllowed(request)))
+  if (!(await userAllowed(request)) && !(await tokenAllowed(request)))
     return json({ error: 'Sign in required' }, 401);
-  if (request.headers.get('origin') !== new URL(request.url).origin)
-    return json({ error: 'Origin rejected' }, 403);
+  if (!sameOrigin(request)) return json({ error: 'Origin rejected' }, 403);
   let symbol: unknown;
   try {
     symbol = ((await request.json()) as { symbol?: unknown }).symbol;

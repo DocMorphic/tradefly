@@ -17,6 +17,7 @@ import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
 import { Slider } from '@/components/ui/slider';
+import { OwnerAccess } from '@/components/owner-access';
 import {
   Activity,
   Bug,
@@ -320,6 +321,7 @@ export default function Desktop() {
           <button onClick={() => open('notes')}>Help</button>
         </nav>
         <div className="menu-right">
+          <OwnerAccess />
           <button
             className={mode === 'paper' ? 'mode-active' : ''}
             onClick={() => {

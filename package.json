@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.18.0"
   },
   "scripts": {
     "dev": "vinext dev",
@@ -14,10 +14,17 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "backend": "uv run python -m tradefly.runner --load-brain",
     "test:backend": "uv run pytest -q",
-    "swarm:terminal": "node scripts/swarm-terminal.mjs"
+    "swarm:terminal": "node scripts/swarm-terminal.mjs",
+    "dev:vercel": "next dev",
+    "build:vercel": "next build",
+    "start:vercel": "next start",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate-vercel.mjs",
+    "setup:vercel": "node scripts/configure-vercel.mjs",
+    "test:vercel": "node scripts/test-vercel.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
+    "@libsql/client": "^0.18.0",
     "@shadcn/react": "0.3.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -26,7 +33,9 @@
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "8.5.2",
     "input-otp": "1.4.2",
+    "jose": "^6.2.12",
     "lucide-react": "1.31.0",
+    "next": "^16.3.5",
     "react": "19.2.6",
     "react-day-picker": "9.8.1",
     "react-dom": "19.2.6",
@@ -59,5 +68,8 @@
     "vite": "8.0.13",
     "wrangler": "4.92.0"
   },
-  "type": "module"
+  "type": "module",
+  "imports": {
+    "#tradefly-runtime": "./lib/server/runtime-vercel.ts"
+  }
 }

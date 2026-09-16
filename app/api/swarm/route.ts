@@ -1,3 +1,4 @@
+import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, userAllowed } from '@/lib/server/backend-store';
 import { FlySwarmEngine } from '@/lib/swarm/engine.mjs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,8 @@ async function load(): Promise<Row> {
     .first<Row>())!;
 }
 export async function GET(request: Request) {
-  if (!userAllowed(request)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await userAllowed(request)))
+    return json({ error: 'Unauthorized' }, 401);
   try {
     const row = await load();
     return json({
@@ -32,9 +34,9 @@ export async function GET(request: Request) {
   }
 }
 export async function POST(request: Request) {
-  if (!userAllowed(request)) return json({ error: 'Unauthorized' }, 401);
-  if (request.headers.get('origin') !== new URL(request.url).origin)
-    return json({ error: 'Origin rejected' }, 403);
+  if (!(await userAllowed(request)))
+    return json({ error: 'Unauthorized' }, 401);
+  if (!sameOrigin(request)) return json({ error: 'Origin rejected' }, 403);
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();

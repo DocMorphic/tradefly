@@ -1,0 +1,11 @@
+.env*
+.venv
+.sites-runtime
+.wrangler
+dist
+runs
+data
+vendor
+logs
+checkpoints
+.git
