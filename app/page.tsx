@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { trackWindowDrag } from '@/lib/window-drag';
 import { EvidenceDesk, type EvidenceTarget } from '@/components/evidence-desk';
 import { DesktopIcons } from '@/components/desktop-icons';
 import { FlyHabitat } from '@/components/fly-habitat';
@@ -456,6 +457,7 @@ function DesktopWindow({
   const [preview, setPreview] = useState<SnapZone | null>(null);
   const animationFrame = useRef<number | null>(null);
   const lastDragEnded = useRef(-Infinity);
+  const stopTracking = useRef<(() => void) | null>(null);
   const drag = useRef<{
     pointer: number;
     startX: number;
@@ -560,6 +562,10 @@ function DesktopWindow({
     // A very quick drag may finish before its first animation frame.
     if (!cancel && !d.started) paintDrag();
     drag.current = null;
+    stopTracking.current?.();
+    stopTracking.current = null;
+    if (document.documentElement.hasPointerCapture(d.pointer))
+      document.documentElement.releasePointerCapture(d.pointer);
     if (d.started) lastDragEnded.current = performance.now();
     flushSync(() => {
       setPreview(null);
@@ -588,22 +594,8 @@ function DesktopWindow({
     }
   }
   useEffect(() => {
-    const cancel = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') finishDrag(true);
-    };
-    const blur = () => finishDrag(true);
-    const release = (e: PointerEvent) => {
-      if (drag.current?.pointer === e.pointerId) finishDrag();
-    };
-    window.addEventListener('pointerup', release, true);
-    window.addEventListener('keydown', cancel);
-    window.addEventListener('blur', blur);
-    window.addEventListener('resize', blur);
     return () => {
-      window.removeEventListener('pointerup', release, true);
-      window.removeEventListener('keydown', cancel);
-      window.removeEventListener('blur', blur);
-      window.removeEventListener('resize', blur);
+      stopTracking.current?.();
       if (animationFrame.current !== null)
         cancelAnimationFrame(animationFrame.current);
     };
@@ -706,24 +698,22 @@ function DesktopWindow({
               ],
             };
             e.preventDefault();
-            e.currentTarget.setPointerCapture(e.pointerId);
+            stopTracking.current = trackWindowDrag(window, e.pointerId, {
+              move: (event) => {
+                const d = drag.current;
+                if (!d) return;
+                d.clientX = event.clientX;
+                d.clientY = event.clientY;
+                if (animationFrame.current === null)
+                  animationFrame.current = requestAnimationFrame(paintDrag);
+              },
+              finish: finishDrag,
+            });
+            // Capture on a stable page node, not a title bar being rerendered
+            // as the preview appears. Global listeners also survive capture loss.
+            document.documentElement.setPointerCapture(e.pointerId);
           }}
-          onPointerMove={(e) => {
-            const d = drag.current;
-            if (!d || d.pointer !== e.pointerId) return;
-            d.clientX = e.clientX;
-            d.clientY = e.clientY;
-            if (animationFrame.current === null)
-              animationFrame.current = requestAnimationFrame(paintDrag);
-          }}
-          onPointerUp={(e) => {
-            if (drag.current?.pointer !== e.pointerId) return;
-            finishDrag();
-            if (e.currentTarget.hasPointerCapture(e.pointerId))
-              e.currentTarget.releasePointerCapture(e.pointerId);
-          }}
-          onPointerCancel={() => finishDrag(true)}
-          onLostPointerCapture={() => finishDrag(true)}
+          onDragStart={(e) => e.preventDefault()}
         >
           <span>
             <Icon size={15} />
