@@ -1,4 +1,16 @@
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core';
+export const marketHistory = sqliteTable(
+  'market_history',
+  {
+    symbol: text('symbol').primaryKey(),
+    payload: text('payload'),
+    requestedAt: integer('requested_at').notNull(),
+    attemptedAt: integer('attempted_at').notNull().default(0),
+    fetchedAt: integer('fetched_at'),
+    error: text('error'),
+  },
+  (t) => [index('idx_market_history_requested').on(t.requestedAt)],
+);
 export const backendState = sqliteTable('backend_state', {
   id: integer('id').primaryKey(),
   snapshot: text('snapshot'),

@@ -8,6 +8,8 @@ import type {
   ChartFill,
 } from '@/lib/trading-charts';
 import { selectedMarket } from '@/lib/trading-charts';
+import { validChartSymbol } from '@/lib/market-history';
+import { useMarketHistory } from '@/components/use-market-history';
 
 const GREEN = '#4ee1a0',
   RED = '#ff7488';
@@ -496,6 +498,8 @@ export function TradingDashboard({
   onTrace?: (id: string) => void;
 }) {
   const pricePanel = useId();
+  const stockList = useId();
+  const [search, setSearch] = useState('');
   const [symbol, setSymbol] = useState(''),
     [limit, setLimit] = useState(60),
     [kind, setKind] = useState<'line' | 'candles'>('line'),
@@ -505,12 +509,16 @@ export function TradingDashboard({
     ...new Set([
       ...data.positions.map((p) => p.symbol),
       ...data.bars.map((b) => b.symbol),
+      ...(symbol ? [symbol] : []),
     ]),
   ].sort();
   const chosen = symbols.includes(symbol)
     ? symbol
     : (data.decisions.at(-1)?.symbol ?? symbols[0] ?? '');
-  const bars = selectedMarket(data, chosen, limit),
+  const history = useMarketHistory(chosen, !data.demo);
+  const bars = data.demo
+      ? selectedMarket(data, chosen, limit)
+      : (history.history?.bars ?? []).slice(-limit),
     lastBar = bars.at(-1),
     change = bars.length > 1 ? lastBar!.close - bars[0].close : null;
   const cutoff =
@@ -665,7 +673,11 @@ export function TradingDashboard({
           <Card
             title="Price & executed trades"
             anchor={pricePanel}
-            note={`${data.source} · ET`}
+            note={
+              data.demo
+                ? `${data.source} · ET`
+                : 'US exchanges · SIP · delayed ≥15 min · ET'
+            }
             tools={
               <div className="trade-price-tools">
                 <label>
@@ -681,6 +693,42 @@ export function TradingDashboard({
                     ))}
                   </select>
                 </label>
+                {!data.demo && (
+                  <form
+                    className="trade-symbol-search"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const next = search.trim().toUpperCase();
+                      if (validChartSymbol(next)) {
+                        setSymbol(next);
+                        setSearch('');
+                      }
+                    }}
+                  >
+                    <input
+                      aria-label="Search any stock symbol"
+                      placeholder="Any symbol"
+                      list={stockList}
+                      value={search}
+                      maxLength={15}
+                      pattern="[A-Za-z][A-Za-z0-9.\-]{0,14}"
+                      onChange={(e) => setSearch(e.target.value.toUpperCase())}
+                    />
+                    <datalist id={stockList}>
+                      {symbols.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </datalist>
+                    <button
+                      type="submit"
+                      disabled={!validChartSymbol(search.trim().toUpperCase())}
+                    >
+                      Chart
+                    </button>
+                  </form>
+                )}
                 <select
                   aria-label="Number of recorded price bars"
                   value={limit}
@@ -688,7 +736,9 @@ export function TradingDashboard({
                 >
                   <option value={24}>Last 24 bars</option>
                   <option value={60}>Last 60 bars</option>
-                  <option value={10000}>All recorded</option>
+                  <option value={10000}>
+                    {data.demo ? 'All recorded' : 'Past 7 days'}
+                  </option>
                 </select>
                 <div className="trade-segments">
                   <button
@@ -715,10 +765,21 @@ export function TradingDashboard({
                 {change === null
                   ? bars.length
                     ? 'One observation is not a trend'
-                    : 'No bars in the received snapshot'
+                    : history.pending
+                      ? 'Loading market history…'
+                      : 'No price observations available'
                   : `${signed(change)} (${percent(bars[0].close ? (change / bars[0].close) * 100 : null)}) in view`}
               </span>
             </div>
+            {!data.demo && (
+              <output className="trade-history-status">
+                {history.error ??
+                  (history.history
+                    ? `Last candle ${lastBar ? clock(lastBar.at, false, true) + ' ET' : 'unavailable'} · ${history.pending ? 'Refreshing…' : 'Regular market hours'}`
+                    : 'Waiting for the local chart worker. Keep Tradefly’s backend running.')}{' '}
+                Charts use delayed SIP; fly decisions still use IEX.
+              </output>
+            )}
             <Graph
               key={`${chosen}-${limit}-${kind}`}
               label={`${chosen} recorded stock price`}

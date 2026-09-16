@@ -396,7 +396,7 @@ function MarketUniverse({ backend }: { backend: PaperBackend }) {
       BUY: 'Neural BUY',
       SELL: 'Neural SELL',
       HOLD: 'Neural HOLD',
-      data_gap: 'IEX data unavailable',
+      data_gap: 'Skipped: insufficient or stale IEX bars',
       already_seen: 'Current bar already seen',
       unseen: 'Not visited yet',
     })[status] ?? status;

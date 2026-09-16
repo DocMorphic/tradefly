@@ -85,6 +85,8 @@ def main():
             print(f'{args.flies} full fly brain(s) loaded. Paper execution remains paused.',flush=True)
         else: print('Brain validation has not passed; monitoring only.',flush=True)
     bridge=Bridge(engine)
+    from .chart_history import start_background
+    chart_stop=start_background() if not args.once else None
     engine.before_submit=bridge.before_submit
     running=True
     def stop(*_):
@@ -124,6 +126,7 @@ def main():
     if args.flies==2 and engine.brain:
         engine.brain.close()
         engine.collect()
+    if chart_stop: chart_stop.set()
     bridge.client.close();engine.broker.close();engine.ledger.close()
 
 if __name__=='__main__': main()
