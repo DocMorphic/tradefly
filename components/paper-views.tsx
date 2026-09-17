@@ -182,6 +182,7 @@ export function Decision({ d }: { d: PaperDecision }) {
             buy: d.neural.buy_hz,
             sell: d.neural.sell_hz,
             reason: d.reason,
+            learning: d.learning,
             status: '',
           }}
         />
@@ -206,7 +207,11 @@ export function Decision({ d }: { d: PaperDecision }) {
             <Stat
               label="Winning lead"
               value={`${count(Math.abs(d.neural.buy_hz - d.neural.sell_hz))} Hz`}
-              note="Requires ≥ 8 Hz and winner ≥ 20 Hz"
+              note={
+                d.learning
+                  ? `Original decoder: ${d.original_action}; learned prediction: ${d.learning.prediction_bps.toFixed(1)} bp`
+                  : 'Requires ≥ 8 Hz and winner ≥ 20 Hz'
+              }
             />
             <Stat
               label="Decision time"
@@ -1072,8 +1077,9 @@ export function PaperView({
                       The full fixed connectome runs for 500 ms of neural time.
                     </li>
                     <li>
-                      BUY and SELL are read from the final 250 ms; winner needs
-                      20 Hz and an 8 Hz lead.
+                      The original decoder reads the final 250 ms with a 20 Hz
+                      threshold and an 8 Hz lead. In learned modes, recorded
+                      neural patterns feed the associative memory instead.
                     </li>
                     <li>
                       Execution can reduce or reject the intent. It cannot

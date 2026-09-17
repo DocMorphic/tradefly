@@ -17,6 +17,7 @@ import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
 import { Slider } from '@/components/ui/slider';
+import { TrainingLab } from '@/components/training-lab';
 import { OwnerAccess } from '@/components/owner-access';
 import {
   Activity,
@@ -48,6 +49,7 @@ import {
 } from '@/lib/window-layout';
 
 type AppId =
+  | 'learning'
   | 'overview'
   | 'brain'
   | 'ledger'
@@ -59,6 +61,7 @@ type AppId =
   | 'activity'
   | 'evidence';
 const APPS = {
+  learning: { title: 'Training Lab', icon: FlaskConical },
   evidence: { title: 'Evidence desk', icon: Network },
   habitat: { title: 'Fly habitat', icon: Bug },
   swarm: { title: 'Swarm research', icon: FlaskConical },
@@ -265,7 +268,7 @@ export default function Desktop() {
       return 'Swarm research · live explorer / prototype signals';
     if (
       mode === 'demo' &&
-      !['evidence', 'habitat', 'log', 'activity'].includes(id)
+      !['evidence', 'habitat', 'log', 'activity', 'learning'].includes(id)
     )
       return 'Synthetic demo · simulated trades';
     const snapshot = backend.data.snapshot;
@@ -283,6 +286,7 @@ export default function Desktop() {
     return `Alpaca paper connected · ${brain} · ${state}`;
   }
   function content(id: AppId): ReactNode {
+    if (id === 'learning') return <TrainingLab backend={backend} />;
     if (id === 'activity')
       return <BrainActivity backend={backend} onTrace={showEvidence} />;
     if (id === 'evidence')

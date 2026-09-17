@@ -23,19 +23,22 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return json({ error: 'Origin rejected' }, 403);
   let command;
   let symbols: unknown;
+  let mode: unknown;
   try {
     const body = (await request.json()) as {
       command?: unknown;
       symbols?: unknown;
+      mode?: unknown;
     };
     command = body.command;
     symbols = body.symbols;
+    mode = body.mode;
   } catch {
     return json({ error: 'Invalid request' }, 400);
   }
   if (
     typeof command !== 'string' ||
-    !['pause', 'resume', 'watchlist'].includes(command)
+    !['pause', 'resume', 'watchlist', 'decoder'].includes(command)
   )
     return json({ error: 'Unknown command' }, 400);
   const row = await state();
@@ -51,6 +54,26 @@ export async function POST(request: Request) {
       { error: 'A connected account and validated brain are required' },
       409,
     );
+  if (command === 'decoder') {
+    if (!['original', 'learned', 'shadow'].includes(String(mode)))
+      return json({ error: 'Unknown decoder' }, 400);
+    if (
+      !snapshot?.paused ||
+      !row?.received_at ||
+      Date.now() - Date.parse(row.received_at) > 45000
+    )
+      return json({ error: 'Connect and pause the worker first' }, 409);
+    if (
+      mode === 'learned' &&
+      (!snapshot?.learning?.eligible ||
+        !snapshot.learning.updated_at ||
+        Date.now() - Date.parse(snapshot.learning.updated_at) > 300000)
+    )
+      return json(
+        { error: 'The learner must pass a fresh held-out evaluation first' },
+        409,
+      );
+  }
   if (command === 'watchlist') {
     if (snapshot?.universe)
       return json(
@@ -90,7 +113,11 @@ export async function POST(request: Request) {
       command,
       id,
       new Date().toISOString(),
-      command === 'watchlist' ? JSON.stringify({ symbols }) : null,
+      command === 'watchlist'
+        ? JSON.stringify({ symbols })
+        : command === 'decoder'
+          ? JSON.stringify({ mode })
+          : null,
     )
     .run();
   return json({ command, command_id: id });

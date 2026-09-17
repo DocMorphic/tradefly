@@ -3330,3 +3330,138 @@ body > div:has(> [data-slot='popover-content']) {
     font-size: 9px;
   }
 }
+
+/* Learning Lab: measured outcomes and persistent reward-memory state. */
+.learning-lab {
+  padding: 24px;
+  color: var(--ink);
+}
+.learning-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.learning-heading h2 {
+  font:
+    italic 34px Georgia,
+    serif;
+  margin: 8px 0;
+}
+.learning-eyebrow {
+  font:
+    11px var(--font-geist-mono),
+    monospace;
+  letter-spacing: 0.12em;
+}
+.learning-mode {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.learning-lab p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.learning-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.learning-summary article {
+  padding: 18px;
+  background: #211e42;
+  color: #eae8f6;
+  border: 1px solid #655e99;
+}
+.learning-summary span,
+.learning-summary small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.learning-summary strong {
+  display: block;
+  font-size: 28px;
+  margin: 12px 0;
+  font-variant-numeric: tabular-nums;
+}
+.learning-summary small {
+  color: #bcb7d3;
+}
+.learning-gain {
+  color: #228460;
+}
+.learning-loss {
+  color: #b3475d;
+}
+.learning-summary .learning-gain {
+  color: #4ee1a0;
+}
+.learning-summary .learning-loss {
+  color: #ff7488;
+}
+.learning-context {
+  max-width: 950px;
+}
+.learning-plots {
+  display: grid;
+  gap: 20px;
+}
+.learning-plots article {
+  background: #18182b;
+  border: 1px solid #4c466a;
+  padding: 20px;
+  color: #eeebff;
+}
+.learning-plots article p {
+  color: #bcb7d3;
+}
+.learning-lab h3 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.learning-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 24px 0;
+}
+.learning-columns article {
+  min-width: 0;
+}
+.learning-gates {
+  list-style: none;
+  padding: 0;
+}
+.learning-gates li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.learning-gates li > span:first-child {
+  flex: 0 0 55px;
+  font-weight: 600;
+}
+.learning-pending {
+  color: #7a5b32;
+}
+.learning-lab details {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+@media (max-width: 760px) {
+  .learning-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .learning-columns {
+    grid-template-columns: 1fr;
+  }
+  .learning-heading {
+    display: block;
+  }
+}

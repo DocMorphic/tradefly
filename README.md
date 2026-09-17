@@ -1,10 +1,18 @@
 # tradefly
 
-A paper-trading experiment in which a simulated fruit fly connectome is the sole source of directional trading decisions.
+A paper-trading experiment driven by measured activity from two simulated fruit fly connectomes. Original mode uses a fixed neural decoder; the Training Lab adds an engineered, fly-inspired reward-learning readout. This is not a claim of biological financial intelligence or proven profitability.
 
 **Status: real paper backend implemented and connected; starts paused.** The desktop has separate Paper and Demo modes. The Paper mode receives the real Alpaca account, measured full-network neural decisions, order outcomes, and audit records from a local Python worker. See [backend setup and operation](docs/BACKEND.md), [brain implementation](docs/BRAIN.md), and [validation evidence](docs/VALIDATION.md).
 
 Run the worker with `uv sync --python 3.12`, then `npm run backend`. The default is two independent flies; see [parallel operation and benchmark](docs/PARALLEL_FLIES.md). Keep the Mac awake. Use Paper → Resume in the private desktop after readiness checks pass. No live-money endpoint exists.
+
+## Training Lab
+
+Open **Training Lab** on the desktop for held-out comparison graphs, delayed rewards, memory updates and promotion checks. The learning service starts with the local worker and persists its dataset/memory under `runs/learning/`. It uses free delayed historical SIP data and never places exploration orders.
+
+Select **Train without orders** while paused, then Resume to collect fresh neural observations without submitting new orders. Existing paper holdings remain in the account. Original paper trading and an eligible learned decoder can be selected separately while paused. [Implementation plan, biology, evaluation limits and operating modes](docs/LEARNING-LAB.md).
+
+For a read-only standalone catch-up: `.venv/bin/python -m tradefly.learning_lab --once --max-fetches 300`. A single-writer lock prevents overlap with the runner's learning service. No paid service or extra brain process is needed.
 
 ## Run the desktop
 

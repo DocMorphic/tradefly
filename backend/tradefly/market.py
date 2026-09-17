@@ -141,6 +141,9 @@ class MarketEngine(Engine):
                         'created_at':now_iso(), 'bar':bar, 'feed':'iex', 'adjustment':'raw',
                         'stimulus_hz':rates, 'neural':neural, 'action':action, 'reason':reason,
                         'account':self.account.copy(), 'position':position.copy()}
+            from .learning_policy import decide
+            decide(self, decision)
+            action, reason = decision['action'], decision['reason']
             checkpoint = self.settings.database.parent/'brain.checkpoint'
             temp = checkpoint.with_suffix('.tmp')
             self.brain.checkpoint(temp); os.replace(temp, checkpoint)

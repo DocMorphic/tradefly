@@ -95,6 +95,10 @@ class Engine:
         if any(r['status']=='uncertain' for r in self.ledger.orders()): result.append('Unresolved submission outcome')
         return result
 
+    def set_decoder(self, mode):
+        from .learning_policy import select
+        select(self, mode)
+
     def resume(self):
         self.refresh()
         reasons=self.blockers()
@@ -132,6 +136,8 @@ class Engine:
     def submit_intent(self, decision, position, asset):
         action=decision['action']
         if self.paused: return None
+        if self.ledger.get('decoder_mode') == 'shadow':
+            self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':decision.get('symbol',self.symbol),'reason':'Training-only mode: no broker orders'});return None
         symbol=decision.get('symbol',self.symbol)
         if symbol in (self.ledger.get(QUARANTINES) or {}):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':symbol,'reason':'Position quarantined after broker discrepancy'});return None
@@ -224,6 +230,9 @@ class Engine:
                       'watchlist':list(self.watchlist),'selection_policy':'fixed round robin', 'created_at':now_iso(),'bar':bar,
                       'feed':'iex','adjustment':'raw','stimulus_hz':rates,'neural':neural,'action':action,
                       'reason':reason,'account':self.account.copy(),'position':position.copy()}
+            from .learning_policy import decide
+            decide(self,decision)
+            action,reason=decision['action'],decision['reason']
             checkpoint=self.settings.database.parent/'brain.checkpoint'
             temporary=checkpoint.with_suffix('.tmp')
             self.brain.checkpoint(temporary)
@@ -265,7 +274,8 @@ class Engine:
         pilot=json.loads(replay_path.read_text()) if replay_path.exists() else None
         check_path=self.settings.database.parent/'watchlist-check.json'
         check=json.loads(check_path.read_text()) if check_path.exists() else None
-        return {'position_checks':position_checks(self),'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
+        from .learning_policy import report as learning_report
+        return {'learning':learning_report(self),'position_checks':position_checks(self),'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
             'broker':{'connected':self.connected,'endpoint':'paper-api.alpaca.markets','credentials_configured':self.settings.credentials_present},
             'brain':{'ready':bool(self.brain and self.brain.ready),'loaded':self.brain is not None,
                      'manifest':manifest,'validation':validation},

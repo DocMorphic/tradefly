@@ -37,6 +37,7 @@ class Bridge:
             elif at and (datetime.now(UTC)-instant(at)).total_seconds()<60:
                 try:
                     if command['command']=='resume': self.engine.resume()
+                    elif command['command']=='decoder': self.engine.set_decoder((command.get('command_payload') or {}).get('mode'))
                     elif command['command']=='watchlist': self.engine.set_watchlist((command.get('command_payload') or {}).get('symbols'))
                 except (ValueError,BrokerError) as e:
                     self.engine.message='Command rejected: '+str(e)
@@ -85,6 +86,8 @@ def main():
     bridge=Bridge(engine)
     from .chart_history import start_background
     chart_stop=start_background() if not args.once else None
+    from .learning_lab import start_background as start_learning
+    learning_stop=start_learning() if not args.once else None
     engine.before_submit=bridge.before_submit
     running=True
     def stop(*_):
@@ -125,6 +128,7 @@ def main():
         engine.brain.close()
         engine.collect()
     if chart_stop: chart_stop.set()
+    if learning_stop: learning_stop.set()
     bridge.client.close();engine.broker.close();engine.ledger.close()
 
 if __name__=='__main__': main()

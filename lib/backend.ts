@@ -1,3 +1,4 @@
+import type { LearningReport } from './learning';
 export type NeuralActivity = {
   schema: number;
   duration_ms: number;
@@ -16,6 +17,14 @@ export type PaperDecision = {
   created_at: string;
   action: 'BUY' | 'SELL' | 'HOLD';
   reason: string;
+  original_action?: 'BUY' | 'SELL' | 'HOLD';
+  learning?: {
+    prediction_bps: number;
+    version: string;
+    frozen: boolean;
+    training_only?: boolean;
+    candidate?: string;
+  };
   bar: { t: string; o: number; h: number; l: number; c: number; v: number };
   feed: string;
   stimulus_hz: Record<string, number>;
@@ -167,6 +176,7 @@ export type BackendSnapshot = {
     reason: string | null;
     recorded_at: string | null;
   }[];
+  learning?: LearningReport;
   blockers: string[];
   decisions: PaperDecision[];
   decision_count: number;

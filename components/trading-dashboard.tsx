@@ -55,7 +55,7 @@ type Series = {
   color: string;
   format?: (v: number | null) => string;
 };
-function Graph({
+export function Graph({
   points,
   series,
   label,
@@ -484,7 +484,11 @@ export function SignalBars({ decision }: { decision: ChartDecision }) {
           <b>{number(v as number | null)} Hz</b>
         </div>
       ))}
-      <small>Activity ≥ 20 Hz + an 8 Hz lead triggers a direction.</small>
+      <small>
+        {decision.learning
+          ? `Learned prediction: ${decision.learning.prediction_bps.toFixed(1)} bp. Action threshold: ±25 bp. Bars show the original neural output pools.`
+          : 'Activity ≥ 20 Hz + an 8 Hz lead triggers a direction.'}
+      </small>
     </div>
   );
 }

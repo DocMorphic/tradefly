@@ -1,4 +1,4 @@
-import type { BackendSnapshot } from './backend';
+import type { BackendSnapshot, PaperDecision } from './backend';
 import type { Frame } from './experiment';
 
 export const finite = (value: unknown): number | null =>
@@ -27,6 +27,7 @@ export type ChartDecision = {
   sell: number | null;
   reason: string;
   status: string;
+  learning?: PaperDecision['learning'];
 };
 export type ChartFill = {
   id: string;
@@ -95,6 +96,7 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
       buy: finite(d.neural.buy_hz),
       sell: finite(d.neural.sell_hz),
       reason: d.reason,
+      learning: d.learning,
       status:
         s.orders.find((o) => o.decision_id === d.id)?.status ??
         (d.action === 'HOLD' ? 'No order' : 'No submission recorded'),

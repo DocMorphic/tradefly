@@ -41,7 +41,8 @@ class ParallelMarketEngine(MarketEngine):
             if future is None or not future.done():continue
             try:
                 neural=future.result();d=p['decision'];d['neural']=neural
-                d['action'],d['reason']=decode(neural['buy_hz'],neural['sell_hz'])
+                from .learning_policy import decide
+                decide(self,d)
                 d['created_at']=now_iso()
                 self.ledger.decision(d)
                 self.ledger.observe(d['symbol'],d['action'],d['reason'])

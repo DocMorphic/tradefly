@@ -73,7 +73,7 @@ try {
     ).status,
     401,
   );
-  for (const command of ['pause', 'resume', 'watchlist']) {
+  for (const command of ['pause', 'resume', 'watchlist', 'decoder']) {
     assert.equal((await post('/api/backend', { command })).status, 401);
   }
   for (const action of ['step', 'reset', 'config', 'focus']) {
@@ -140,6 +140,9 @@ try {
     snapshot,
   );
   assert.equal((await call('/api/swarm', { headers: auth })).status, 200);
+  assert.equal((await post('/api/backend', {command:'decoder',mode:'learned'}, auth)).status,409);
+  assert.equal((await post('/api/backend', {command:'decoder',mode:'shadow'}, auth)).status,200);
+  assert.equal((await post('/api/backend', {command:'decoder',mode:'invalid'}, auth)).status,400);
   assert.equal(
     (await post('/api/market-history', { symbol: 'FEMY' }, auth)).status,
     200,
