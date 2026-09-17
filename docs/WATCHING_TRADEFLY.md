@@ -1,10 +1,12 @@
+[← Documentation](README.md) · [Desktop windows](DESKTOP.md)
+
 # Watching the experiment
 
-The production worker discovers every active, tradable US equity symbol returned by Alpaca. The current account exposes 13,450, including ETFs and symbols that require whole shares. There is no handpicked list or 24-symbol cap. This is the broker's US universe, not every exchange worldwide; crypto and options are outside this experiment.
+The production worker discovers every active, tradable US equity symbol returned by Alpaca. The inventory includes ETFs and symbols that require whole shares; the current count is shown in the desktop. There is no handpicked list or 24-symbol cap. This is the broker's US universe, not every exchange worldwide; crypto and options are outside this experiment.
 
-One persistent brain receives stocks in a stable hash order that does not use prices, returns, volume, sectors or profit rankings. For each presented stock, neural HOLD passes it over; neural BUY or SELL emits an intent for that symbol. This is acceptance of a presented opportunity, not comparison of all stocks at once or evidence of free will. The software supplies the viewing order and interprets the output pools.
+Two independent persistent brains receive stocks from one coordinator in a stable hash order that does not use prices, returns, volume, sectors or profit rankings. For each presented stock, neural HOLD passes it over; neural BUY or SELL emits an intent for that symbol. This is acceptance of a presented opportunity, not comparison of all stocks at once or evidence of free will. The software supplies the viewing order and interprets the output pools.
 
-Five minutes is the input bar resolution, not a pause between stocks. The worker advances continuously while the market is open, fetching groups of 16 symbols and evaluating one at a time. Each stock/bar is evaluated at most once. It waits after completing a tour until newer bars exist. Throughput depends on real network simulation, checkpoint writes, account/order checks and data delivery; the full universe cannot be observed simultaneously. A stock without a current IEX bar and 20 prior completed bars is recorded as a data gap and revisited on a later tour. No synthetic prices or neural HOLDs replace missing data.
+Five minutes is the input bar resolution, not a pause between stocks. The worker advances continuously while the market is open, fetching groups of 16 symbols and assigning the next usable stock to an idle fly. Each stock/bar is evaluated at most once. It waits after completing a tour until newer bars exist. Throughput depends on real network simulation, checkpoint writes, account/order checks and data delivery; the full universe cannot be observed simultaneously. A stock without a current IEX bar and 20 prior completed bars is recorded as a data gap and revisited on a later tour. No synthetic prices or neural HOLDs replace missing data.
 
 Regular-session bars only. The first decision follows the first completed five-minute bar after opening; Resume skips bars completed before Resume. Orders expire when a newer completed bar becomes available or the market closes. The unresolved-order gate freezes further evaluations until reconciliation. Readiness failures and connection errors pause execution.
 
@@ -13,12 +15,14 @@ Regular-session bars only. The first decision follows the first completed five-m
 1. Price change, high–low range, volume relative to the preceding 20 bars, cash fraction, and position fraction become six bounded sensory stimulation rates.
 2. Those rates stimulate named, fixed groups in the full v783 fly network. The market-to-neuron mapping is artificial and documented.
 3. The network runs for 500 ms of neural time. The final 250 ms supplies the output firing rates.
-4. The higher BUY or SELL rate must reach 20 Hz and lead by at least 8 Hz. Otherwise the decision is HOLD. Hz means spikes per second per neuron, not confidence or probability of profit.
+4. In Original mode, the higher BUY or SELL rate must reach 20 Hz and lead by at least 8 Hz. Otherwise the decision is HOLD. Hz means spikes per second per neuron, not confidence or probability of profit.
 5. Execution can reject or reduce the intent, but cannot invent or reverse it. Orders use cash, allow no shorts, and require earlier orders to resolve. Intended size is capped at $100; new buys are limited by 10% total portfolio entry exposure. Actual market fill prices can move from the sizing reference.
 
 ## Learning
 
-There is no learning in V1. Weights, sensory mappings, output pools, and thresholds stay fixed. No news, LLM, labeled financial training set, technical-indicator strategy, or reward update chooses the trades. The previous 20 volume bars are a causal normalization window, not training data. Voltages, conductances and delayed neural events persist and are checkpointed; this is evolving state, not improved trading skill. P&L is measured, not used to train or reward the network.
+Original mode keeps the connectome weights and decoder fixed. Neural state evolves, but that alone is not learning. Training-only mode adds a separate associative memory driven by measured neural patterns and delayed market outcomes. The tested decoder is frozen before held-out evaluation and requires owner activation after its gates pass. See [Training Lab](LEARNING-LAB.md) for the complete distinction.
+
+Corporate-action and account verification still apply. An unverified broker balance is not valid performance; affected records are excluded from learning, and new orders remain blocked pending reconciliation.
 
 ## What to watch
 

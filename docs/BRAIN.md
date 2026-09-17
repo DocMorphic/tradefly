@@ -29,7 +29,7 @@ The trial-oriented reference creates PoissonInput objects and records all spikes
 
 Brian2's installed Cython disk RNG restore did not reproduce a minimal Poisson-only test reliably. Tradefly therefore checkpoints its own NumPy generator state and restores Brian's deterministic network state without its pointer-based RNG buffers. Same-process and fresh-process tests compare the complete vector of neuron spike counts. These tests are required before use; a model/encoder/manifest hash change invalidates earlier readiness reports.
 
-Only aggregate spike counts are kept during the run. Full spike trains are not continuously accumulated. About 250 MB is checkpointed per completed market decision; local disk needs headroom for atomic replacement. No learned weights, rewards, dopamine learning, financial predictor, or LLM has been added.
+A passive recorder captures bounded, sampled real spike events for the activity view and neural-feature learner, alongside aggregate counts. It is removed before checkpoints and does not continuously accumulate full spike trains. About 250 MB is checkpointed per completed market decision; local disk needs headroom for atomic replacement. The connectome weights remain fixed. The separately implemented [Training Lab](LEARNING-LAB.md) adds engineered associative readout weights and delayed market feedback; it does not reconstruct biological dopamine signaling or modify the underlying connectome. No LLM supplies trading decisions.
 
 ## What validation establishes
 

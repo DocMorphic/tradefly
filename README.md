@@ -1,86 +1,192 @@
-# tradefly
+<p align="center">
+  <img src="docs/assets/cover.svg" alt="Tradefly — a fly brain meets the stock market. Two simulations, one paper account, every decision traceable." width="100%" />
+</p>
 
-A paper-trading experiment driven by measured activity from two simulated fruit fly connectomes. Original mode uses a fixed neural decoder; the Training Lab adds an engineered, fly-inspired reward-learning readout. This is not a claim of biological financial intelligence or proven profitability.
+<p align="center">
+  <a href="https://papertradefly.vercel.app/">Open the desktop</a> ·
+  <a href="docs/GETTING_STARTED.md">Run it yourself</a> ·
+  <a href="docs/README.md">Explore the docs</a> ·
+  <a href="docs/BRAIN.md">Inside the brain</a>
+</p>
 
-**Status: real paper backend implemented and connected; starts paused.** The desktop has separate Paper and Demo modes. The Paper mode receives the real Alpaca account, measured full-network neural decisions, order outcomes, and audit records from a local Python worker. See [backend setup and operation](docs/BACKEND.md), [brain implementation](docs/BRAIN.md), and [validation evidence](docs/VALIDATION.md).
+# What if a fly had a trading desk?
 
-Run the worker with `uv sync --python 3.12`, then `npm run backend`. The default is two independent flies; see [parallel operation and benchmark](docs/PARALLEL_FLIES.md). Keep the Mac awake. Use Paper → Resume in the private desktop after readiness checks pass. No live-money endpoint exists.
+**Tradefly turns measured activity from simulated fruit-fly brains into paper-trading decisions.** Two independent simulations explore available stocks, a coordinator handles the paper account, and a windowed desktop lets you inspect what happened—from market input to neuron activity to broker outcome.
 
-## Training Lab
+It is part neuroscience experiment, part trading lab, and part tiny fly sitting at a very serious computer.
 
-Open **Training Lab** on the desktop for held-out comparison graphs, delayed rewards, memory updates and promotion checks. The learning service starts with the local worker and persists its dataset/memory under `runs/learning/`. It uses free delayed historical SIP data and never places exploration orders.
+> **The honest version:** the fly connectome supplies neural activity; humans designed the market inputs, action mapping and execution rules. A separate, fly-inspired memory layer can learn from later market outcomes. This is not a biological fly that understands finance, and profitability has not been established.
 
-Select **Train without orders** while paused, then Resume to collect fresh neural observations without submitting new orders. Existing paper holdings remain in the account. Original paper trading and an eligible learned decoder can be selected separately while paused. [Implementation plan, biology, evaluation limits and operating modes](docs/LEARNING-LAB.md).
+## A desktop for watching the experiment
 
-For a read-only standalone catch-up: `.venv/bin/python -m tradefly.learning_lab --once --max-fetches 300`. A single-writer lock prevents overlap with the runner's learning service. No paid service or extra brain process is needed.
+| Open this | See this |
+| :--- | :--- |
+| **Observation desk** | Account history, holdings, interactive price charts, and the latest decisions. |
+| **Brain activity** | Recorded spikes mapped to the brain visualization, with sampling and source information. |
+| **Training Lab** | Delayed feedback, memory updates, held-out comparisons, and the checks required before a learned decoder can trade. |
+| **Evidence desk** | The chain from market observation → neural response → intent → execution → fill. |
+| **Fly log & trade ledger** | Factual activity, sortable holdings, broker outcomes, and exports. |
+| **Fly habitat** | A 3D fly at a trading screen displaying account telemetry. The typing is decorative. |
 
-## Run the desktop
+Drag windows, snap them to halves or quarters, arrange the desktop, and hover over charts to inspect the underlying readings. Public visitors can watch; only the owner can change controls.
 
-**Vercel deployment is supported.** See [the Vercel setup guide](docs/VERCEL.md) for the free Turso database, private owner login, environment variables and local worker connection. The checked-in `vercel.json` selects the Next.js build; existing Sites build commands still work.
-
-Use Node 22.18+ (24+ recommended for the test runner). Run `npm ci`, then `npm run dev`. `npm test` checks decision thresholds, accounting, execution timing, and metrics. `npm run build` produces the hosted application. See [desktop architecture and data semantics](docs/DESKTOP.md).
-
-The question: can a fixed biological network, given numerical market inputs through a transparent interface, produce interesting trading behavior?
+## How a market observation becomes a decision
 
 ```mermaid
 flowchart LR
-    A[Completed market bars] --> B[Fixed sensory encoder]
-    B --> C[Fly connectome simulation]
-    C --> D[Fixed neural action decoder]
-    D --> E[Paper execution constraints]
-    E --> F[Local paper ledger or Alpaca paper]
-    F --> G[Position and cash observations]
-    G --> B
-    C --> H[Activity and experiment dashboard]
-    F --> H
+    M["Completed market bars"] --> E["Six sensory channels"]
+    E --> F["Two independent<br/>fly-brain simulations"]
+    F --> D["Neural readout<br/>BUY · SELL · HOLD"]
+    D --> G{"Execution checks"}
+    G -->|Pass| P["Alpaca paper account"]
+    G -->|Blocked| L["Recorded reason"]
+    F -. "measured spikes" .-> UI["Tradefly desktop"]
+    P -. "balances & fills" .-> UI
+    L -. "audit trail" .-> UI
+    classDef brain fill:#39347e,color:#fff,stroke:#9186ce;
+    classDef paper fill:#e0f2e9,color:#183e2d,stroke:#65a384;
+    classDef neutral fill:#efedf8,color:#292340,stroke:#a9a0c6;
+    class F brain;
+    class P paper;
+    class M,E,D,G,L,UI neutral;
 ```
 
-“Only the brain” means the fly network supplies every buy/sell/hold intent. Human-designed encoding and decoding are necessary and are part of the experiment. They will be fixed, published, and audited; no market signal can bypass the network to choose an action. Execution constraints may reject or reduce an order but cannot invent or reverse a trade.
+Each fly simulates **138,639 neurons** from the FlyWire female v783 dataset. The connectivity contains **15,091,983 neuron-pair rows representing 54,492,922 synapses**. Tradefly adapts the Shiu/Spiller Brian2 reference model; the input mapping and trading labels are our experiment design.
 
-The first version uses fixed neural weights. It does not learn from profits, understand stocks, or establish a recreation of a living fly. We are testing behavior, not assuming a profitable strategy.
+The coordinator visits Alpaca's active, tradable US-equity universe—including ETFs—in a stable, price-independent order. Available data and simulation throughput determine which stocks get evaluated. **All stocks are eligible; not every stock has usable current input data.** Five minutes is the input-bar resolution, not a five-minute pause between stocks.
 
-## Current defaults
+[Model, exact populations & adaptations →](docs/BRAIN.md) · [Two-fly scheduling →](docs/PARALLEL_FLIES.md)
 
-- FlyWire female v783 data, with the Shiu et al. Brian2 model as the reference implementation. This is distinct from the newer male CNS dataset; using the male map is a later explicit migration.
-- Every active, tradable US equity symbol returned by Alpaca (including ETFs). No handpicked shortlist. Two independent fly brains process different stocks in the same neutral sensory tour. Each measured neural output supplies its own directional intent; one coordinator serializes orders for the shared paper account. Data gaps and unvisited stocks remain visible.
-- Completed five-minute input bars during regular US sessions; several stocks can be evaluated per boundary. There is no five-minute sleep between symbols.
-- Real account cash comes from Alpaca (initially $100,000); historical replay and Demo use separate $10,000 ledgers. Long-only, $100 maximum intended order and 10% total portfolio entry exposure; no borrowing or shorting.
-- Historical replay and Alpaca paper-only integration are implemented. The worker starts paused.
-- Local Python worker, SQLite event ledger and private hosted telemetry. Fly log provides factual chronological activity; Decision inspector shows the detailed neural evidence.
+## Three modes, one clear boundary
 
-The real account balance comes from Alpaca rather than the demo bankroll. Execution enforces cash-only entry sizing and checks actual holdings; market fills may drift from the sizing reference price. The demo remains a separate synthetic ledger. See [the technical plan](docs/PLAN.md), [milestones](docs/ROADMAP.md), [user setup](docs/USER_SETUP.md), and [sources](docs/SOURCES.md).
+![Original fly: fixed thresholds. Training only: adaptive memory without broker orders. Tested decoder: frozen memory with gated paper execution.](docs/assets/modes.svg)
 
-## Files
+| Mode | What changes with experience? | Can submit paper orders? |
+| :--- | :--- | :--- |
+| **Original fly** | Neural state evolves; connectome weights and original decoder stay fixed. | Yes, after owner Resume and execution checks. |
+| **Train without orders** | A separate associative memory learns from delayed outcomes. | **No.** Existing holdings remain open. |
+| **Tested decoder** | The selected execution memory stays frozen; shadow learning continues separately. | Only after evaluation passes, owner selection, and Resume. |
 
-| Path | Purpose |
-| --- | --- |
-| `docs/PLAN.md` | Architecture, neural interfaces, scientific controls, execution behavior |
-| `docs/ROADMAP.md` | Build order and completion criteria |
-| `docs/USER_SETUP.md` | Account setup and optional preferences |
-| `docs/SOURCES.md` | Research and API references |
-| `config/experiment.example.toml` | Original planning settings; runtime uses frozen Python/manifest parameters |
-| `.env.example` | Local paper credential names |
+All modes start paused. Account reconciliation, corporate-action verification and other readiness checks still apply to training-only operation.
 
-Large datasets, credentials, downloaded third-party code, and experiment output stay outside Git. Any reused code must retain its upstream license, and data licenses and attribution must be recorded independently.
+### What “learning” means here
 
-## Swarm research desk
+```mermaid
+flowchart LR
+    N["Save the neural pattern"] --> Q["Make a prediction"]
+    Q --> W["Wait for the 30-minute outcome<br/>and market-data delay"]
+    W --> R["Compare prediction<br/>with the observed move"]
+    R --> U["Update fast & slow memory"]
+    U --> N
+    U -. "separate candidate" .-> T["Freeze → evaluate on future data"]
+    T --> G{"Beats controls<br/>after modeled costs?"}
+    G -->|No| C["Keep learning; no promotion"]
+    G -->|Yes| O["Eligible for an owner-selected<br/>paper trial"]
+    classDef memory fill:#39347e,color:#fff,stroke:#9186ce;
+    class U,T memory;
+```
 
-The separate Swarm research window adapts FlySwarm's token radar, holder sample, funding graph, wallet dossiers, cohort memory, explainable rule scores, simulated position plans and terminal. Token/holder observations are labeled by source; funding/cohort/return examples are prominently synthetic. Research settings cannot place Alpaca orders or alter the biological simulation. See [the upstream audit and feature map](docs/FLYSWARM_AUDIT.md).
+The learning rule is inspired by reward-modulated associative memory. **The underlying connectome remains fixed.** The memory receives measured neural features, not a separate price-based trading signal. Evaluation compares the learned readout with the original fly, cash, always-buy, momentum, and a version with neural input removed.
 
-### Fly habitat
+These are independent hypothetical opportunities—not portfolio returns. The gate includes held-out coverage and modeled trading costs; passing it permits a paper trial, not a profitability claim.
 
-Open **Fly habitat** from the desktop to see a 3D activity avatar at its trading desk. Drag to orbit and scroll/pinch to zoom. It follows paper-worker telemetry, distinguishes order intents from broker-confirmed fills, and shows the latest measured BUY/SELL firing rates. Preview buttons animate sample states without placing orders or resuming trading. Motion can be paused and respects reduced-motion preferences. The stylized movements are illustrative, not biological motor outputs. Three.js license: `public/three-license.txt`.
+[Learning method, evaluation gates & limitations →](docs/LEARNING-LAB.md)
 
-### Evidence desk
+## Where everything runs
 
-Paper stock charts load seven days of completed, regular-session SIP candles independently of the decision log. SIP covers US exchanges and is requested at least 16 minutes behind the current clock to stay within Alpaca's free historical entitlement. The UI labels the delay; missing intervals remain empty. Search any symbol or select a holding. The private chart cache refreshes at most every five minutes per viewed symbol. Broker credentials remain on the Mac.
+```mermaid
+flowchart TB
+    subgraph Laptop["Your laptop · persistent simulation"]
+        B["Python / Brian2<br/>two fly processes"]
+        C["One account coordinator"]
+        S[("Local SQLite<br/>full ledger & checkpoints")]
+        B --> C --> S
+    end
+    A["Alpaca<br/>paper account & market data"] <--> C
+    C -->|"authenticated telemetry"| V["Vercel<br/>desktop & API"]
+    V -->|"owner commands"| C
+    V <--> T[("Turso<br/>website state & chart cache")]
+    R["Public viewers"] -->|"read only"| V
+    O["Owner"] -->|"authenticated controls"| V
+```
 
-The read-only chart helper starts automatically with `npm run backend`; it can also run alongside an existing worker with `uv run python -m tradefly.chart_history`. Keep the Mac awake for fresh charts. This helper never submits orders, alters neural state, or changes the trading feed: flies continue using completed IEX bars with their existing freshness checks. No paid data subscription is required.
+**Vercel hosts the interface. Your laptop runs the brains.** Closing the website does not stop the worker; sleeping or stopping the laptop prevents fresh simulations and telemetry. Alpaca credentials stay local.
 
-The read-only Evidence desk links decisions from Observation desk, Decision inspector, Trade ledger and Fly log into market input → neural response → intent → execution → broker outcome. Stock dossiers and the paginated market map distinguish visited stocks, missing inputs and unseen symbols. Views use the bounded telemetry snapshot and label missing/older records explicitly; full history remains in the local ledger.
+## Get started
 
-Replay comparison re-executes the recorded single-stock intraday pilot under its original next-open fill/cost convention and verifies the reported P&L before displaying cash, one $100 buy-and-hold entry and 30 seeded random-action controls. It does not rerun neural seeds or establish held-out profitability. All control paths and assumptions can be exported.
+**Just looking?** [Open the public desktop](https://papertradefly.vercel.app/). No broker credentials are needed to watch the owner's run. The synthetic Demo is a separate, clearly labeled mode.
 
-## Corporate-action checks
+**Running your own checkout?** Use Node 22.18+ and Python 3.12 with `uv`. Start with the [complete setup guide](docs/GETTING_STARTED.md), which covers the database, owner login, paper credentials, pinned brain data, validation and worker connection.
 
-The worker checks corporate actions before trusting performance or submitting new orders. Affected balances are labeled unverified, profit readings are withheld, and contaminated learning observations are excluded. See [the reconciliation policy](docs/CORPORATE-ACTIONS.md). Raw broker history and fills remain intact.
+For an **already configured checkout**:
+
+```sh
+# Desktop — terminal 1
+npm run dev:vercel
+
+# Two fly simulations, chart helper and learning service — terminal 2
+npm run backend
+```
+
+The worker starts paused. Sign in as owner, inspect readiness, choose a mode, then Resume. Keep the worker's configured website URL pointed at the desktop you intend to control.
+
+[First-time setup →](docs/GETTING_STARTED.md) · [Deploy on Vercel →](docs/VERCEL.md) · [Daily operation →](docs/USER_SETUP.md)
+
+## Read the numbers correctly
+
+| Data | Meaning |
+| :--- | :--- |
+| **Trading inputs** | Completed regular-session IEX bars; coverage can be sparse. |
+| **Price charts & learning outcomes** | Historical SIP data requested at least 16 minutes behind the clock. This does not upgrade the trading feed. |
+| **Account change** | Broker equity minus the experiment baseline; it can include manual activity or accounting errors. |
+| **All time** | The full recorded account timespan, condensed for plotting with extrema retained. The full ledger stays local. |
+| **Unverified performance** | A corporate action or unavailable check prevents the balance from being treated as reliable performance. Affected readings are withheld. |
+| **Demo / Swarm research** | Separate research or synthetic views; they cannot place Alpaca orders. |
+
+Default execution is long-only and cash-sized: **$100 maximum intended order**, **10% total portfolio entry exposure**, one account coordinator, and no live-money endpoint. Market fills can differ from the sizing price. Pause stops new submissions and requests cancellation of Tradefly's open orders; it does not liquidate holdings.
+
+Corporate-action evidence persists across restarts and feed failures. The app does not manufacture corrected balances or quietly erase suspicious gains. [How the checks work →](docs/CORPORATE-ACTIONS.md)
+
+## Documentation map
+
+| I want to… | Go here |
+| :--- | :--- |
+| Install and connect everything | [Getting started](docs/GETTING_STARTED.md) |
+| Understand what I am watching | [Desktop guide](docs/DESKTOP.md) |
+| Inspect the neuroscience | [Brain implementation](docs/BRAIN.md) · [Sources](docs/SOURCES.md) |
+| Understand the learning layer | [Training Lab](docs/LEARNING-LAB.md) |
+| Operate or recover the worker | [Backend](docs/BACKEND.md) · [Position recovery](docs/POSITION-RECOVERY.md) |
+| Check what has actually been tested | [Validation record](docs/VALIDATION.md) |
+| See what is built and what comes next | [Roadmap](docs/ROADMAP.md) |
+| Browse everything | [Documentation index](docs/README.md) |
+
+## Development
+
+```sh
+npm test                 # Desktop logic, accounting and chart semantics
+uv run pytest -q         # Backend, execution, learning and reconciliation
+npm run build:vercel     # Production web build
+npm run test:vercel      # Isolated production API/auth checks
+```
+
+The production API checks use a temporary database and throwaway keys; they do not call Alpaca. Downloaded brain data, credentials, checkpoints and run output are ignored by Git.
+
+```text
+app/                 Desktop entry points and authenticated API routes
+components/          Windows, charts, evidence views and the fly habitat
+lib/                 UI data models, research tools and server adapters
+backend/tradefly/    Simulation, paper execution, learning and audit services
+scripts/             Setup, validation, replay and deployment helpers
+docs/                Operating guides, research notes and provenance
+```
+
+## Built on the work of others
+
+- **[Shiu et al. / Spiller reference model](https://github.com/philshiu/Drosophila_brain_model)** — connectome-based simulation; pinned revision and adaptations documented in [BRAIN.md](docs/BRAIN.md).
+- **[FlyWire](https://flywire.ai/)** — adult female brain connectivity. This is not the newer male CNS dataset.
+- **[FlySwarm](https://github.com/semkazz1/FlySwarm)** — inspiration and adapted components for the separate Swarm research desk; see the [feature and license audit](docs/FLYSWARM_AUDIT.md).
+- **Brian2, Three.js, Next.js, Alpaca and Turso** — simulation, visualization, desktop and data infrastructure.
+
+Upstream notices are retained in [`licenses/`](licenses/), [`lib/swarm/LICENSE`](lib/swarm/LICENSE), and the public asset notices. Upstream code licenses do not license the brain datasets or the entire Tradefly repository; there is currently no repository-wide license grant. [Asset provenance →](docs/ASSETS.md)
+
+<p align="center"><sub>A small fly. A large experiment. Check the evidence.</sub></p>

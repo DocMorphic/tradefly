@@ -1,51 +1,71 @@
-# Tradefly desktop
+# A guide to the desktop
 
-Implemented 2026-09-14. A browser desktop, following the windowed interaction model of the user's portfolio and Rolodex projects. It is not a native macOS application.
+[← Documentation](README.md) · [Open Tradefly](https://papertradefly.vercel.app/) · [Read the experiment](WATCHING_TRADEFLY.md)
 
-## Visual direction
+Tradefly is a browser desktop. Its windows are different views of the same experiment; opening or rearranging them does not change the brain or place an order.
 
-Photographic alpine wallpaper with baked-in indigo duotone and film grain; one separate responsive Tradefly wordmark, no trademark or visible theme label. Compact headings, monochrome charts, and inline metric definitions. Asset provenance and the generation prompt are in ASSETS.md.
+## Find your window
 
-References inspected: portfolio desktop/wallpaper/theme source; Rolodex desktop, windows, and controls; the [Hermes site](https://hermes-agent.nousresearch.com/) for saturated monochrome color, grain, narrow typography, sharp edges, and framed interfaces; [Indigo Grain reference](https://kidspattern.com/theme/indigo-grain/swatch/1/) for deep blue-violet texture. No images or proprietary source were copied from Hermes.
+| Window | The question it answers |
+| :--- | :--- |
+| Observation desk | What is the account doing right now? |
+| Brain activity | Which recorded neurons fired in this observed step? |
+| Training Lab | Is memory changing, and does the tested decoder beat its comparisons? |
+| Decision inspector | Which inputs, neural rates and decoder produced this intent? |
+| Evidence desk | Did that intent become an order, a fill or a blocked action? |
+| Trade ledger | What was submitted, what filled, and what is held? |
+| Performance lab | How do recorded account outcomes and research comparisons differ? |
+| Fly log | What happened, in chronological order? |
+| Fly habitat | Can I watch a small fly sit at a trading terminal? Yes. |
+| Data & definitions | What do the sources, settings and metrics mean? |
+| Swarm research | What do the separate token, wallet and cohort research tools show? |
 
-## Applications
+## Read a decision from left to right
 
-- Observation desk: calculated paper equity, return, drawdown, trade counts, chart, latest output rates, and recent decisions.
-- Decision inspector: navigate observations, see BUY/SELL pool activity, threshold and margin checks, and whether the resulting intent filled or was blocked.
-- Trade ledger: filter buy/sell/hold decisions, inspect each decision, and export both decisions and executed fills to CSV.
-- Performance lab: realized/unrealized P&L, fees, drawdown, win rate on sell fills, turnover, exposure, profit factor, and comparison portfolios. Export a JSON report containing every visible frame, decision resolution, fill, parameter, and control trace.
-- Data & definitions: concise status/settings tables and a complete metric dictionary.
+```mermaid
+flowchart LR
+    A["Observation<br/>completed bar + account context"] --> B["Neural evidence<br/>stimulus rates + recorded spikes"]
+    B --> C["Intent<br/>BUY / SELL / HOLD"]
+    C --> D["Execution<br/>checks + sizing + submission"]
+    D --> E["Outcome<br/>broker fill or explicit reason"]
+```
 
-Windows open, focus, drag, resize, maximize, minimize, close, and restore from the taskbar. Small screens use full workspace windows. The global session controller can play/pause, scrub, or restart the synthetic day. There is no actual trading pause action because no broker is connected. State is ephemeral and resets on reload.
+An intent is not a fill. A blocked BUY remains a BUY intent with a recorded execution veto. The Fly log describes evidence; it does not generate a fly's inner monologue or use an LLM to invent reasoning.
 
-## Data provenance and semantics
+## Arrange the workspace
 
-`lib/experiment.ts` generates a deterministic 78-bar synthetic session. Both market observations and output-pool rates are fabricated fixtures for interface development. Rates are NOT computed from market observations by a connectome. Output-rate history plots replace the old illustrative network drawing. They plot the fixture values without implying anatomical or live neuron data. All relevant windows and exported artifacts identify the synthetic source.
+- Drag title bars to move windows; drag to an edge or corner for half- or quarter-screen snapping.
+- Resize, minimize, maximize and restore windows from the taskbar.
+- Move desktop icons freely during a session. Refresh restores their default positions.
+- On smaller screens, windows use the available workspace rather than overflowing below the taskbar.
 
-The demo decoder uses two constants: minimum output activity of 20 Hz and a lead of at least 8 Hz over the other pool. These are UI example parameters, not validated biological parameters. No learned external policy is involved, but no brain is running either.
+## Explore the charts
 
-A directional decision at index t can fill only at index t+1. Fills use the next synthetic price with 2 basis points of adverse slippage and a 1 basis point fee. Orders use at most $100 notional and a 10% entry exposure cap, and cannot sell shares that are not held. Market drift can change exposure between entries. Blocked and held intents remain in the journal. The final bar's non-hold intent is pending and contributes no fill until a later bar exists.
+Hover, tap, or focus a chart and use the arrow keys to inspect its values. The account-range controls affect the account history and drawdown views. **All time** covers the full recorded account timespan; older samples are condensed while preserving extrema. Displayed date bounds make the selected span explicit. Full records remain in the local ledger.
 
-Cash and shares determine equity. Average cost, including entry fees, determines realized P&L on sell fills. Unrealized P&L is the remaining position's marked value minus its cost basis. Return is based on $10,000 initial cash. Drawdown is the largest equity decline from a preceding equity peak in the replay prefix. Win rate counts profitable sell fills, including partial position reductions; it is not a count of fully closed position cycles. Profit factor is undefined when gross realized losses are zero.
+Stock charts have a separate selector for recent bars or the past seven days. They use delayed SIP candles, independently of the fly's IEX input feed. Gaps stay visible; missing data is not a flat price or a HOLD decision.
 
-The ten-percent buy-and-hold curve is a **gross** price reference initialized with $1,000 exposure. The deterministic random control uses the same order limits and modeled execution costs as the main fixture but not the same trade counts or exposure. These are not a rigorous matched-connectome experiment. The shuffled-connectome result and brain compute timing correctly remain unmeasured.
+Holdings become internally scrollable after ten rows. Search, numeric sorting, profit/loss filters and known-fill timestamps help explore them. A latest fill is the latest known fill in the received snapshot, not a guaranteed position-opening timestamp.
 
-## Connecting the actual engine later
+## Know which world you are in
 
-Replace the fixture at a single typed boundary, keeping observations, stimulus manifest, brain dataset revision, output summary, decoder parameters, intent, and fill events distinct. Every record must carry a source (`synthetic-demo`, `historical-connectome`, or `paper-connectome`), experiment ID, timestamp, and parameter hash. Genuine neural observations should reference selected real neuron IDs and checkpoint IDs. Do not infer causality from a correlation or generate an LLM explanation of intention.
+| Label | What it means |
+| :--- | :--- |
+| Paper | A local worker's Alpaca paper account and recorded neural decisions. |
+| Demo | A deterministic synthetic session for exploring the interface. |
+| Historical replay | Recorded market data with explicitly simulated execution assumptions. |
+| Training Lab | Independent hypothetical outcomes used to evaluate a learned readout. |
+| Unverified | The account or corporate-action evidence does not support reliable performance reporting. |
+| Offline / saved readings | The desktop has not received fresh telemetry. |
 
-Keep Python/Brian2 outside the hosted web process; the current Sites runtime has a 128 MB memory ceiling and cannot host the full reference brain. The future desktop should consume aggregated telemetry over an authenticated HTTP service, with credentials kept server-side. Persist real events in the engine ledger; reconnecting the UI must not restart the brain or resubmit orders. A missing backend must show disconnected state, never silently substitute this fixture as live data.
+The app does not silently replace disconnected paper telemetry with demo data. Corporate-action warnings withhold affected gains and graph segments, including on the 3D monitor. Raw broker records remain auditable.
 
-## Validation
+## Public observation, private controls
 
-- Unit checks cover silence/ties/invalid rates, next-bar execution, cash/share conservation, average-cost P&L reconciliation, blocked sells, no future fills in prefix exports, deterministic controls, and drawdown calculations.
-- Type checking and a production build are required.
-- The generated component catalog contains existing lint failures. The lint configuration excludes that unchanged vendor catalog and its generated mobile hook; application code, shared accounting, and tests are checked.
-- Structured browser tool contracts expose a read-only demo report and a demo decision navigation action. Both were verified in a supported WebMCP context, including invalid input and unchanged-state checks after failure.
-- Broad browser interaction and visual QA have not been run. The user requested reference exploration, not browser testing of the finished product.
+On Vercel, public visitors can read the published experiment. Owner login is required for pause/resume, decoder changes and other mutations. Broker credentials never enter the browser. The simulation continues independently of open windows and browser tabs.
 
-## Data-density revision
+Pausing the fly avatar's motion only pauses the decorative animation. Use the paper-account Pause control to stop new submissions; it does not liquidate holdings.
 
-Account balances and the current holding are visible in the overview. Decision inspection includes the exact activity/margin checks, account state at the time, the precise resolution reason, all fill fields, and an expandable raw record. The ledger has separate decision and fill tables. Numerical metrics include denominators, units, and click-to-open definitions. Fees and adverse slippage are itemized without subtracting either twice. Empty, blocked, pending, and unmeasured states are explicit.
+## Visual and data provenance
 
-Additional tests check resolution counts across every replay prefix, cost basis, slippage, and full report/CSV completeness. The background overlap reported in the supplied screenshot is addressed by removing the trademark element entirely and bounding the standalone wordmark.
+The interface uses the project's indigo photographic wallpaper, restrained window chrome, and green/red financial charts. Wallpaper provenance is in [ASSETS.md](ASSETS.md). Brain geometry and sampled recorded spikes are explained in [brain visualization research](BRAIN_VISUALIZATION_RESEARCH.md). The avatar's typing is illustrative, not the simulation's biological motor output.

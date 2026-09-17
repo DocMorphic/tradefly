@@ -1,47 +1,40 @@
-# Build milestones
+# Built, tested, still open
 
-## 0 — Project setup
+[← Documentation](README.md) · [Validation record](VALIDATION.md)
 
-- [x] Create local planning repository and documented defaults.
-- [x] Confirm private GitHub remote and initial push: `DocMorphic/tradefly`.
-- [x] Build the Indigo Grain desktop and tested synthetic accounting demonstration.
-- [x] Implement full v783 engine, real IEX data, paper adapter, persistent records, and private desktop telemetry.
-- [ ] Complete multi-seed held-out financial evaluation and observe an end-to-end paper-market session.
+This is a capability map, not a promise that the experiment will become profitable. Current implementation status: September 17, 2026.
 
-Current implementation and exact limits: BACKEND.md, BRAIN.md, VALIDATION.md.
+## Implemented
 
-## 1 — Demonstrate the brain works
+- [x] Full FlyWire female v783 simulation with pinned reference data and documented adaptations.
+- [x] Two independent persistent fly processes and one paper-account coordinator.
+- [x] Full broker US-equity universe discovery with explicit data gaps and coverage.
+- [x] Alpaca paper execution, durable intent IDs, order reconciliation and startup pause.
+- [x] Public Vercel desktop with owner-only controls and a local authenticated bridge.
+- [x] Interactive graphs, evidence links, factual logs, recorded brain activity and a 3D fly habitat.
+- [x] Fly-inspired associative memory, training-only mode, causal reward timing and frozen held-out evaluation.
+- [x] Corporate-action warnings, unverified-performance handling and execution/learning gates.
+- [x] Full recorded account timespan in bounded chart telemetry.
 
-Pin research code/data; verify provenance; create compatible Python environment; reproduce a documented neural response; measure full-network memory and runtime; add bounded spike monitoring.
+## The next research questions
 
-Done when a saved, reproducible report names the dataset, verifies neuron IDs and responses, and establishes whether this machine can meet the chosen bar cadence. If full-network execution fails the memory/time budget, record the failure before choosing a different implementation, machine, or explicitly labeled subset.
+| Question | Evidence still needed |
+| :--- | :--- |
+| Does neural input add information? | Stronger held-out and forward comparisons against the neural-ablated readout and simple controls. |
+| Does it survive costs and changing markets? | More trading days, multiple neural seeds, and realistic portfolio-level execution evaluation. |
+| Is the learning biologically faithful? | A separately specified plasticity model and biological validation; current memory is an engineered inspiration. |
+| Are reported returns trustworthy? | Reconciled corporate actions, cash flows, fees, slippage and account activity. |
+| Does a faster simulation preserve behavior? | Benchmarks and equivalence checks, not just more worker processes. |
 
-## 2 — Connect market observations to neural decisions
+## Product improvements to consider
 
-Define typed contracts, select input/output populations, implement causal encoding and neural-only decoding, preserve/checkpoint state, and drive the system with synthetic market observations.
+- A complete audited workflow for resolving corporate actions and preserving invalid historical intervals.
+- Portfolio-level forward evaluation with overlapping capital, revisits and exposure modeled explicitly.
+- Better data-coverage diagnostics while staying within free data access.
+- Self-hosting improvements for separate owners and ledgers. The public installation remains one owner's run.
 
-Done when every intent traces to measured neural activity, identical checkpoints/seeds replay within declared numerical tolerances, and silencing relevant output activity prevents directional intents. Verify there is no direct feature-to-action bypass.
+## Separate experiments
 
-## 3 — Run historical paper experiments
+A male-CNS migration, different sensory scheduling, changes to brain equations, or biological synaptic plasticity need their own versioned protocols. They should not be silently folded into the existing experiment or its historical claims.
 
-Acquire permitted historical data, implement next-bar fills and ledger accounting, freeze the experiment, and run held-out periods with cash, buy-and-hold, random, and connectome controls.
-
-Done when the report includes costs, drawdowns, multiple seeds, exposure, activity diagnostics, and known data limitations. Tests must catch future-data leakage, duplicate bars, corporate-action inconsistencies, and invalid fills. Profitability is not a completion requirement.
-
-## 4 — Run against current data with paper money
-
-Configure a dedicated Alpaca paper account, reconcile broker state, implement durable order IDs and reconnect handling, and run the same fixed experiment on completed regular-session bars.
-
-Done when all submissions are paper-only, restarts do not duplicate orders, partial fills and timeouts reconcile correctly, and stale data or missing brain output cannot generate trades. Begin with a supervised session to verify the full event chain.
-
-## 5 — Make it watchable (desktop demonstration implemented first)
-
-Implemented at the user’s request: a desktop with replay, a decision inspector, trade ledger, performance analysis, and exports, using explicitly synthetic data.
-
-Still required: replace fixtures with actual experiment telemetry. Build the local dashboard: neural activity, BUY/SELL pool rates, current observation, paper holdings, P&L, controls, replay speed, and a trace for each decision.
-
-Done when a user can watch the network affect trades, compare matched controls, pause submissions, and export an experiment report. Match dashboard activity to real recorded telemetry.
-
-## Later experiments
-
-An explicit male-CNS port, multi-stock sensory design, and biologically motivated plasticity can each become separate versioned experiments. They are not required for the first result. There is no planned transition to real-money trading.
+There is no implemented live-money mode. Profitability remains an open question, not a checked milestone.

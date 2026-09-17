@@ -12,4 +12,10 @@ Checked 2026-09-14. Pin upstream commits and data hashes during implementation; 
 8. [Alpaca market-data FAQ](https://docs.alpaca.markets/us/docs/market-data-faq): feed access and market-data limitations.
 9. [Alpaca order lifecycle](https://docs.alpaca.markets/us/docs/working-with-orders): orders, client identifiers, and execution events.
 
-The financial experiment protocol, observation choices, action mapping, execution constraints, and milestones in this repository are proposed Tradefly design decisions. They are not scientific findings from these sources.
+The financial protocol, observation choices, action mapping, execution constraints, and milestones are Tradefly design decisions. They are not scientific findings from these sources.
+
+## Learning and account verification
+
+- [Huang et al., Nature (2024)](https://www.nature.com/articles/s41586-024-07819-w): dopamine-mediated short- and long-term mushroom-body memory; an inspiration for the engineered memory layer, not evidence that Tradefly recreates that mechanism.
+- [Alpaca corporate actions](https://docs.alpaca.markets/us/v1.1/reference/corporateactions-1): split and other share-event metadata used by the local valuation checks.
+- [Nasdaq NCT split notice](https://www.nasdaqtrader.com/TraderNews.aspx?id=ECA2026-663): the September 17, 2026 event behind the documented paper-account mismatch.

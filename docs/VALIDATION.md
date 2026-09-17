@@ -1,5 +1,18 @@
 # Validation evidence
 
+[← Documentation](README.md) · [Current roadmap](ROADMAP.md)
+
+> This is a chronological evidence log. Counts, portfolios and operating modes below belong to their dated checks, not necessarily the current installation.
+
+## Latest software checks — September 17, 2026
+
+At the corporate-action update, 91 backend tests and 51 desktop-logic tests passed, along with the production web build and isolated API/auth checks. Coverage includes delayed reward timing, held-out separation, training-only order blocking, full-timespan chart transport, corporate-action persistence and unverified-profit handling. The connected paper account's NCT split mismatch was detected, affected profit was withheld, and an owner Resume request was rejected pending reconciliation.
+
+These checks establish implementation behavior. They do not establish profitability, a complete accounting audit, or biological fidelity. Full-network response and checkpoint reports remain separately documented below.
+
+---
+
+
 Measured locally on 2026-09-14.
 
 - Full graph: 138,639 neurons, 15,091,983 directed neuron-pair rows, 54,492,922 synapses.

@@ -18,3 +18,7 @@ Color palette: strictly near-black indigo shadows through deep indigo and muted 
 Materials/textures: conspicuous fine silver-halide film grain across sky, rocks, and forest, authentic photographic texture rather than smooth vector forms.
 Constraints: generate exactly one image; no letters, text, logos, trademarks, watermark, interface, icons, people, or buildings. No illustration, no flat vector silhouettes, no synthetic gradients.
 ```
+
+## Documentation illustrations
+
+`docs/assets/cover.svg` and `docs/assets/modes.svg` are original code-authored vector graphics using Tradefly’s existing fly mark and indigo palette. The cover network is illustrative, not measured neuron activity. The mode diagram describes program behavior, not financial results. Both include accessible titles/descriptions and use self-contained SVG elements without remote image dependencies.

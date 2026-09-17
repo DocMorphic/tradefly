@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+<title id="title">Tradefly — two simulated fly brains, one paper account</title>
+<desc id="desc">An indigo cover with the Tradefly fly emblem and an illustrative network. 138,639 simulated neurons per fly, two independent brains, paper trading only.</desc>
+<defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#b8b4ee" stroke-opacity=".06"/></pattern></defs>
+<rect width="1200" height="440" rx="24" fill="#17172f"/>
+<rect width="1200" height="440" rx="24" fill="url(#grid)"/>
+<path d="M725 0V440" stroke="#504b80" stroke-opacity=".5"/>
+<text x="56" y="59" fill="#b3acd9" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">AN EXPERIMENT IN BIOLOGICAL COMPUTATION</text>
+<text x="50" y="195" fill="#f1efff" font-family="Georgia,serif" font-style="italic" font-size="132" letter-spacing="-7">tradefly</text>
+<text x="58" y="246" fill="#e2dff9" font-family="Arial,sans-serif" font-size="24">A fly brain meets the stock market.</text>
+<text x="58" y="281" fill="#aba6c9" font-family="Arial,sans-serif" font-size="17">Two simulations. One paper account. Every decision traceable.</text>
+<path d="M58 327H667" stroke="#484268"/>
+<g font-family="Arial,sans-serif"><text x="58" y="365" fill="#f1efff" font-size="24">138,639</text><text x="58" y="391" fill="#a8a2c5" font-size="12" letter-spacing="1">NEURONS PER FLY</text><text x="300" y="365" fill="#f1efff" font-size="24">2</text><text x="300" y="391" fill="#a8a2c5" font-size="12" letter-spacing="1">INDEPENDENT BRAINS</text><text x="489" y="365" fill="#92dbb5" font-size="24">Paper only</text><text x="489" y="391" fill="#a8a2c5" font-size="12" letter-spacing="1">NO LIVE-MONEY ENDPOINT</text></g>
+<g fill="none" stroke="#7970b2" stroke-width="1.5" opacity=".65"><circle cx="960" cy="204" r="141"/><circle cx="960" cy="204" r="172" stroke-dasharray="2 10"/><path d="M818 204L859 110L978 63L1077 103L1101 211L1060 303L927 342L841 279Z M859 110L1060 303M978 63L841 279M1077 103L927 342M818 204L1101 211"/></g>
+<g fill="#b8adef"><circle cx="859" cy="110" r="5"/><circle cx="978" cy="63" r="5"/><circle cx="1077" cy="103" r="5"/><circle cx="818" cy="204" r="5"/><circle cx="1101" cy="211" r="5"/><circle cx="1060" cy="303" r="5"/><circle cx="927" cy="342" r="5"/><circle cx="841" cy="279" r="5"/></g>
+<g transform="translate(864 108) scale(1.5)"><rect width="128" height="128" rx="30" fill="#39347e"/>
+  <path d="M55 63C43 35 22 28 20 43c-3 17 14 31 35 33ZM73 63c12-28 33-35 35-20 3 17-14 31-35 33Z" fill="#eeecff"/>
+  <path d="m27 53 9 4 5-5 11 15m49-14-9 4-5-5-11 15" fill="none" stroke="#8c85cd" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m57 82-10 10m24-10 10 10M59 38l-5-8m15 8 5-8" fill="none" stroke="#eeecff" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="46" r="10" fill="#eeecff"/>
+  <path d="M64 61c-7 0-10 6-10 13 0 13 6 26 10 28 4-2 10-15 10-28 0-7-3-13-10-13Z" fill="#eeecff"/>
+  <path d="M56 79h16m-14 9h12" stroke="#39347e" stroke-width="3" stroke-linecap="round"/>
+</g>
+<text x="960" y="394" text-anchor="middle" fill="#a8a2c5" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">CONNECTOME → ACTIVITY → INTENT</text>
+<text x="960" y="418" text-anchor="middle" fill="#827d9c" font-family="Arial,sans-serif" font-size="10">Illustrative network artwork · not a neural recording</text>
+</svg>
