@@ -528,6 +528,7 @@ export function TradingDashboard({
   const chosen = symbols.includes(symbol)
     ? symbol
     : (data.decisions.at(-1)?.symbol ?? symbols[0] ?? '');
+  const priceAction = data.valuation?.issues.find((i) => i.symbol === chosen);
   const history = useMarketHistory(chosen, !data.demo);
   const bars = data.demo
       ? selectedMarket(data, chosen, limit)
@@ -824,14 +825,16 @@ export function TradingDashboard({
             <div className="trade-price-heading">
               <b>{chosen || '—'}</b>
               <strong>{money(lastBar?.close ?? null)}</strong>
-              <span className={tone(change)}>
-                {change === null
-                  ? bars.length
-                    ? 'One observation is not a trend'
-                    : history.pending
-                      ? 'Loading market history…'
-                      : 'No price observations available'
-                  : `${signed(change)} (${percent(bars[0].close ? (change / bars[0].close) * 100 : null)}) in view`}
+              <span className={priceAction ? 'neutral' : tone(change)}>
+                {priceAction
+                  ? 'Corporate action · raw price change is not an investment return'
+                  : change === null
+                    ? bars.length
+                      ? 'One observation is not a trend'
+                      : history.pending
+                        ? 'Loading market history…'
+                        : 'No price observations available'
+                    : `${signed(change)} (${percent(bars[0].close ? (change / bars[0].close) * 100 : null)}) in view`}
               </span>
             </div>
             {!data.demo && (
