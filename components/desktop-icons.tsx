@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Point = { x: number; y: number };
-const STORAGE = 'tradefly.desktop-icons.v1';
 const WIDTH = 96,
   HEIGHT = 100,
   GAP = 20;
@@ -16,7 +15,7 @@ export function DesktopIcons({
 }) {
   const surface = useRef<HTMLElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const [saved, setSaved] = useState<Record<string, Point>>({});
+  const [positions, setPositions] = useState<Record<string, Point>>({});
   const [preview, setPreview] = useState<{ id: string; point: Point } | null>(
     null,
   );
@@ -30,24 +29,6 @@ export function DesktopIcons({
   } | null>(null);
   const suppressClick = useRef(false);
   useEffect(() => {
-    try {
-      const raw: unknown = JSON.parse(localStorage.getItem(STORAGE) || '{}');
-      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-        setSaved(
-          Object.fromEntries(
-            Object.entries(raw).filter(
-              ([, p]) =>
-                p &&
-                typeof p === 'object' &&
-                Number.isFinite(p.x) &&
-                Number.isFinite(p.y),
-            ),
-          ),
-        );
-      }
-    } catch {
-      /* Device storage is optional. */
-    }
     const node = surface.current;
     if (!node) return;
     const measure = () =>
@@ -66,22 +47,14 @@ export function DesktopIcons({
     return clamp(
       preview?.id === id
         ? preview.point
-        : saved[id] || {
+        : positions[id] || {
             x: Math.floor(index / rows) * (WIDTH + GAP),
             y: (index % rows) * (HEIGHT + GAP),
           },
     );
   }
   function remember(id: string, point: Point) {
-    setSaved((previous) => {
-      const next = { ...previous, [id]: point };
-      try {
-        localStorage.setItem(STORAGE, JSON.stringify(next));
-      } catch {
-        /* Still movable without storage. */
-      }
-      return next;
-    });
+    setPositions((previous) => ({ ...previous, [id]: point }));
   }
   return (
     <nav ref={surface} className="desktop-icons" aria-label="Applications">
