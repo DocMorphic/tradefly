@@ -30,6 +30,9 @@ def select(engine, mode):
     if not engine.paused:
         raise ValueError('Pause trading before changing the decoder')
     if mode == 'learned':
+        from .corporate_actions import report as action_report
+        if not action_report(engine)['performance_verified']:
+            raise ValueError('Corporate-action valuation must be verified first')
         r = report(engine)
         if not r.get('eligible') or datetime.now(UTC)-instant(r['updated_at']) > timedelta(minutes=5):
             raise ValueError('The learner has not passed a fresh held-out evaluation')

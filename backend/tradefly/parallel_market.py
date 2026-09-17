@@ -104,6 +104,10 @@ class ParallelMarketEngine(MarketEngine):
             if close!=boundary:self.advance('data_gap','No current completed IEX bar');continue
             if self.ledger.has_bar(bar['t'],self.symbol):self.advance('already_seen','Current symbol/bar already evaluated');continue
             position=next((p for p in self.positions if p['symbol']==self.symbol),{})
+            from .corporate_actions import input_affected
+            if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
+                self.advance('corporate_action','Input window crosses a corporate action; skipped')
+                continue
             rates=encode(bar,bars[:-1],self.account,position)
             self.last_bar=bar
             d={'id':digest(self.brain.manifest_hash+self.symbol+bar['t']), 'symbol':self.symbol,'fly_id':fly,

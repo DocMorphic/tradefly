@@ -130,6 +130,10 @@ class MarketEngine(Engine):
         if self.ledger.has_bar(bar['t'], self.symbol):
             self.advance('already_seen', 'Current symbol/bar already evaluated'); return
         position = next((p for p in self.positions if p['symbol']==self.symbol), {})
+        from .corporate_actions import input_affected
+        if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
+            self.advance('corporate_action','Input window crosses a corporate action; skipped')
+            return
         rates = encode(bar, bars[:-1], self.account, position)
         self.ledger.set('brain_inflight', {'symbol':self.symbol,'bar':bar['t']})
         try:

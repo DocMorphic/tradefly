@@ -105,6 +105,26 @@ export type BackendSnapshot = {
     frames: unknown[];
     fills: unknown[];
   };
+  corporate_actions?: {
+    status: 'checked' | 'review_required' | 'unavailable';
+    performance_verified: boolean;
+    checked_at: string | null;
+    affected_since: string | null;
+    message: string;
+    issues: {
+      id: string;
+      symbol: string;
+      type: string;
+      date: string;
+      effective_at: string;
+      broker_qty: string;
+      pre_action_qty: string;
+      expected_qty_before_rounding?: string;
+      reason: string;
+      status: string;
+    }[];
+  };
+  reported_equity_change_usd?: number | null;
   max_observed_drawdown_pct: number;
   equity_sample_count: number;
   equity_history_info?: {

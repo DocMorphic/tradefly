@@ -307,7 +307,12 @@ export function Decision({ d }: { d: PaperDecision }) {
   );
 }
 function EquityHistory({ s }: { s: BackendSnapshot }) {
-  const samples = s.equity_history ?? [];
+  const samples = (s.equity_history ?? []).filter(
+    (p) =>
+      s.corporate_actions?.performance_verified !== false ||
+      (s.corporate_actions.affected_since &&
+        Date.parse(p.at) < Date.parse(s.corporate_actions.affected_since)),
+  );
   const cursor = useChartCursor(samples.length, 730, 70, 630);
   if (samples.length < 2) return null;
   const values = samples.map((p) => Number(p.equity));
@@ -915,7 +920,11 @@ export function PaperView({
                     <Stat
                       label="Equity change"
                       value={usd(s.equity_change_usd)}
-                      note="Current broker equity minus first observed equity"
+                      note={
+                        s.corporate_actions?.performance_verified === false
+                          ? 'Unverified: corporate-action reconciliation required'
+                          : 'Current broker equity minus first observed equity'
+                      }
                     />
                     <Stat
                       label="Observed return"
@@ -939,7 +948,11 @@ export function PaperView({
                       <h3>What this measures</h3>
                       <dl>
                         <dt>Max observed drawdown</dt>
-                        <dd>{count(s.max_observed_drawdown_pct)}%</dd>
+                        <dd>
+                          {s.corporate_actions?.performance_verified === false
+                            ? 'Unverified'
+                            : `${count(s.max_observed_drawdown_pct)}%`}
+                        </dd>
                         <dt>Equity samples</dt>
                         <dd>{count(s.equity_sample_count)}</dd>
                         <dt>Starting observation</dt>
@@ -948,7 +961,8 @@ export function PaperView({
                         <dd>{usd(s.baseline?.equity)}</dd>
                         <dt>Open-position P&amp;L</dt>
                         <dd>
-                          {s.broker.connected
+                          {s.broker.connected &&
+                          s.corporate_actions?.performance_verified !== false
                             ? usd(
                                 s.positions.reduce(
                                   (sum, p) => sum + Number(p.unrealized_pl),

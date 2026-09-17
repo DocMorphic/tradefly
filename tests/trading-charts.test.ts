@@ -174,3 +174,43 @@ test('All time retains old history while 6H uses the snapshot clock', async () =
   assert.equal(data.series[2].gapBefore, false);
   assert.equal(data.series[3].gapBefore, true);
 });
+
+test('corporate-action warning withholds gains and affected graph segments, preserving raw balances', () => {
+  const s = snapshot();
+  s.equity_change_usd = 2400;
+  s.corporate_actions = {
+    status: 'review_required',
+    performance_verified: false,
+    checked_at: s.updated_at,
+    affected_since: '2026-09-15T14:05:00Z',
+    message: 'Reconcile split',
+    issues: [
+      {
+        id: 'split',
+        symbol: 'AAPL',
+        type: 'reverse_split',
+        date: '2026-09-15',
+        effective_at: '2026-09-15T14:05:00Z',
+        broker_qty: '299',
+        pre_action_qty: '299',
+        reason: 'Split mismatch',
+        status: 'quantity_mismatch',
+      },
+    ],
+  };
+  s.equity_history.unshift({
+    at: '2026-09-15T14:00:00Z',
+    equity: '100',
+    cash: '50',
+  });
+  const before = JSON.stringify(s),
+    data = paperTradingData(s);
+  assert.equal(data.pnl, null);
+  assert.equal(data.series[0].pnl, 0);
+  assert.equal(data.series[1].pnl, null);
+  assert.equal(data.series[1].drawdown, null);
+  assert.equal(data.positions[0].pnl, null);
+  assert.equal(data.positions[0].returnPct, null);
+  assert.equal(data.equity, 110);
+  assert.equal(JSON.stringify(s), before);
+});

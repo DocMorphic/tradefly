@@ -76,6 +76,8 @@ class Engine:
         self.market=self.broker.clock()
         self.reconcile()
         self.connected=True
+        from .corporate_actions import refresh as refresh_actions
+        refresh_actions(self)
         self.ledger.equity_sample(self.account['equity'],self.account['cash'])
 
     def blockers(self):
@@ -86,6 +88,9 @@ class Engine:
         if self.account.get('currency')!='USD': result.append('A USD paper account is required')
         if self.account.get('trading_blocked') or self.account.get('account_blocked') or self.account.get('status')!='ACTIVE':
             result.append('Account is not available for trading')
+        from .corporate_actions import report as action_report
+        if not action_report(self)['performance_verified']:
+            result.append('Corporate-action verification requires attention; account valuation is unverified')
         own={r['client_id'] for r in self.ledger.orders()}
         if any(o['client_order_id'] not in own for o in self.open_orders): result.append('Unrelated open orders in paper account')
         if any(p['symbol'] not in self.watchlist or number(p['qty'])<0 for p in self.positions):
@@ -138,6 +143,9 @@ class Engine:
         if self.paused: return None
         if self.ledger.get('decoder_mode') == 'shadow':
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':decision.get('symbol',self.symbol),'reason':'Training-only mode: no broker orders'});return None
+        from .corporate_actions import report as action_report
+        if not action_report(self)['performance_verified']:
+            self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':'Corporate-action valuation unverified'});return None
         symbol=decision.get('symbol',self.symbol)
         if symbol in (self.ledger.get(QUARANTINES) or {}):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':symbol,'reason':'Position quarantined after broker discrepancy'});return None
@@ -220,6 +228,9 @@ class Engine:
         if previous_time and instant(previous_time)+timedelta(minutes=5)>self.started and instant(bar['t']).astimezone(NY).date()==instant(previous_time).astimezone(NY).date() and instant(bar['t'])-instant(previous_time)>timedelta(minutes=5):
             self.pause('Missed bars; resume explicitly to skip the backlog');return
         position=next((p for p in self.positions if p['symbol']==self.symbol),{})
+        from .corporate_actions import input_affected
+        if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
+            self.message='Input window crosses a corporate action; skipped';return
         rates=encode(bar,bars[:-1],self.account,position)
         self.ledger.set('brain_inflight',bar['t'])
         try:
@@ -277,7 +288,9 @@ class Engine:
         check_path=self.settings.database.parent/'watchlist-check.json'
         check=json.loads(check_path.read_text()) if check_path.exists() else None
         from .learning_policy import report as learning_report
-        return {'learning':learning_report(self),'position_checks':position_checks(self),'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
+        from .corporate_actions import report as action_report
+        valuation=action_report(self)
+        return {'corporate_actions':valuation,'reported_equity_change_usd':delta,'learning':learning_report(self),'position_checks':position_checks(self),'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
             'broker':{'connected':self.connected,'endpoint':'paper-api.alpaca.markets','credentials_configured':self.settings.credentials_present},
             'brain':{'ready':bool(self.brain and self.brain.ready),'loaded':self.brain is not None,
                      'manifest':manifest,'validation':validation},
@@ -288,7 +301,7 @@ class Engine:
             'selection_policy':'One shared brain; fixed round robin; one stock per five-minute bar',
             'feed':'iex','latest_bar':self.last_bar,
             'limits':{'max_order_usd':100,'max_exposure_pct':10,'long_only':True},
-            'baseline':baseline,'equity_change_usd':delta,
+            'baseline':baseline,'equity_change_usd':delta if valuation['performance_verified'] else None,
             'max_observed_drawdown_pct':drawdown*100,'equity_sample_count':len(samples),
             'equity_history':equity_history,'equity_history_info':history_info,'blockers':self.blockers(),
             'decisions':decisions[-100:],'decision_count':self.ledger.decision_count(),'orders':orders[-100:],

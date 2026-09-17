@@ -13,12 +13,19 @@ export function paintTradingScreen(
   a: FlyActivity,
   s: BackendSnapshot | null,
 ) {
+  const unverified = s?.corporate_actions?.performance_verified === false;
   const samples = (s?.equity_history ?? [])
+    .filter(
+      (p) =>
+        !unverified ||
+        (s?.corporate_actions?.affected_since &&
+          Date.parse(p.at) < Date.parse(s.corporate_actions.affected_since)),
+    )
     .map((p) => ({ at: Date.parse(p.at), equity: Number(p.equity) }))
     .filter((p) => Number.isFinite(p.at) && Number.isFinite(p.equity))
     .sort((p, q) => p.at - q.at);
   const equity = s?.account?.equity == null ? null : Number(s.account.equity);
-  const change = s?.equity_change_usd;
+  const change = unverified ? null : s?.equity_change_usd;
   c.fillStyle = '#101626';
   c.fillRect(0, 0, 1200, 660);
   c.fillStyle = '#a3accb';
@@ -32,18 +39,25 @@ export function paintTradingScreen(
   c.font = 'bold 49px monospace';
   c.fillText(
     equity !== null && Number.isFinite(equity)
-      ? money(equity)
+      ? unverified
+        ? 'VALUE UNVERIFIED'
+        : money(equity)
       : 'Awaiting account',
     35,
     116,
   );
   c.font = '22px monospace';
-  c.fillStyle =
-    typeof change === 'number' && change < 0 ? '#f27886' : '#66d9aa';
+  c.fillStyle = unverified
+    ? '#e8c483'
+    : typeof change === 'number' && change < 0
+      ? '#f27886'
+      : '#66d9aa';
   c.fillText(
     typeof change === 'number' && Number.isFinite(change)
       ? `${change >= 0 ? '+' : ''}${money(change)} since experiment start`
-      : 'Waiting for measured performance',
+      : unverified
+        ? 'Corporate action / reconciliation required'
+        : 'Waiting for measured performance',
     35,
     154,
   );
@@ -105,7 +119,11 @@ export function paintTradingScreen(
     c.textAlign = 'right';
     c.fillText(clock(t1), right, 530);
     c.textAlign = 'left';
-    c.fillText('ACCOUNT EQUITY / USD', left, 567);
+    c.fillText(
+      unverified ? 'HISTORY BEFORE FLAGGED ACTION' : 'ACCOUNT EQUITY / USD',
+      left,
+      567,
+    );
   } else {
     c.fillStyle = '#9da7c1';
     c.font = '25px monospace';

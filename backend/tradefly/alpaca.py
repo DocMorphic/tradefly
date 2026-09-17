@@ -18,7 +18,8 @@ class Alpaca:
         self.client.close()
 
     def request(self, method, path, *, data=False, params=None, payload=None):
-        if not path.startswith('/v2/') or '://' in path or '..' in path:
+        allowed_action = method == 'GET' and data and path == '/v1/corporate-actions'
+        if (not path.startswith('/v2/') and not allowed_action) or '://' in path or '..' in path:
             raise ValueError('Invalid broker path')
         try:
             response = self.client.request(method, (DATA_URL if data else PAPER_URL) + path,
@@ -32,6 +33,12 @@ class Alpaca:
             return response.json() if response.content else None
         except ValueError:
             raise BrokerError(None, 'invalid response') from None
+
+    def corporate_actions(self, start, end, token=None):
+        from .corporate_actions import TYPES
+        params = {'start': start, 'end': end, 'types': ','.join(TYPES), 'limit': 1000}
+        if token: params['page_token'] = token
+        return self.request('GET', '/v1/corporate-actions', data=True, params=params)
 
     def account(self): return self.request('GET', '/v2/account')
     def positions(self): return self.request('GET', '/v2/positions')

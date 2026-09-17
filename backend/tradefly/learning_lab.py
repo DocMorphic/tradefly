@@ -13,6 +13,7 @@ from pathlib import Path
 from .alpaca import Alpaca, BrokerError
 from .config import ROOT, Settings
 from .domain import UTC, NY, completed_bars, instant, now_iso
+from .corporate_actions import KEY as ACTIONS_KEY, effective
 from .learning import VERSION, features, evaluate, HORIZON_BARS, COST_BPS, STRESS_BPS
 
 
@@ -87,6 +88,9 @@ class Lab:
         with sqlite3.connect(f'file:{self.ledger_path}?mode=ro', uri=True) as source:
             records = source.execute('SELECT rowid,data FROM decisions WHERE rowid>? ORDER BY rowid', (self.get('cursor', 0),)).fetchall()
             quarantine = source.execute("SELECT value FROM settings WHERE key='position_quarantines_v1'").fetchone()
+            actions = source.execute('SELECT value FROM settings WHERE key=?', (ACTIONS_KEY,)).fetchone()
+        action_state = json.loads(actions[0]) if actions else {}
+        self.action_state = action_state
         excluded = set(json.loads(quarantine[0])) if quarantine else set()
         with self.db:
             for rowid, raw in records:
@@ -111,6 +115,13 @@ class Lab:
                     self.set('manifest_hash', neural.get('manifest_hash'))
             for symbol in excluded:
                 self.db.execute("UPDATE observations SET status='quarantined' WHERE symbol=?", (symbol,))
+            # Any post-incident account input can contain distorted equity/cash.
+            # Keep source decisions; exclude their derived training observations.
+            for issue in action_state.get('issues', []):
+                self.db.execute("UPDATE observations SET status='corporate_action' WHERE status IN ('ready','pending') AND json_extract(payload,'$.decision_at')>=?", (issue['effective_at'],))
+            for event in action_state.get('events', []):
+                at = effective(event).isoformat()
+                self.db.execute("UPDATE observations SET status='corporate_action' WHERE symbol=? AND status IN ('ready','pending') AND julianday(json_extract(payload,'$.decision_at')) BETWEEN julianday(?,'-40 minutes') AND julianday(?,'+7 days')", (event['symbol'],at,at))
 
     def fetch_day(self, symbol, day, now):
         cached = self.db.execute('SELECT * FROM prices WHERE symbol=? AND day=?', (symbol, day)).fetchone()
@@ -175,6 +186,9 @@ class Lab:
         counts = dict(self.db.execute('SELECT status,COUNT(*) FROM observations GROUP BY status'))
         pending_train = self.db.execute("SELECT COUNT(*) FROM observations WHERE status='pending' AND json_extract(payload,'$.decision_at')<?", (cutoff,)).fetchone()[0]
         result['requirements'].append({'label': 'Training outcomes collected', 'passed': pending_train == 0 and result['training_count'] > 0})
+        action_state = getattr(self, 'action_state', {})
+        checked = action_state.get('checked_at')
+        result['requirements'].append({'label': 'Corporate-action valuation verified', 'passed': bool(checked and action_state.get('status') == 'checked' and not action_state.get('issues') and datetime.now(UTC)-instant(checked)<timedelta(minutes=30))})
         result['eligible'] = all(r['passed'] for r in result['requirements'])
         candidate = {'version': VERSION, 'manifest_hash': self.get('manifest_hash'), 'models': result.pop('models'),
                      'cutoff': cutoff, 'eligible': result['eligible']}

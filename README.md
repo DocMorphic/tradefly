@@ -80,3 +80,7 @@ The read-only chart helper starts automatically with `npm run backend`; it can a
 The read-only Evidence desk links decisions from Observation desk, Decision inspector, Trade ledger and Fly log into market input → neural response → intent → execution → broker outcome. Stock dossiers and the paginated market map distinguish visited stocks, missing inputs and unseen symbols. Views use the bounded telemetry snapshot and label missing/older records explicitly; full history remains in the local ledger.
 
 Replay comparison re-executes the recorded single-stock intraday pilot under its original next-open fill/cost convention and verifies the reported P&L before displaying cash, one $100 buy-and-hold entry and 30 seeded random-action controls. It does not rerun neural seeds or establish held-out profitability. All control paths and assumptions can be exported.
+
+## Corporate-action checks
+
+The worker checks corporate actions before trusting performance or submitting new orders. Affected balances are labeled unverified, profit readings are withheld, and contaminated learning observations are excluded. See [the reconciliation policy](docs/CORPORATE-ACTIONS.md). Raw broker history and fills remain intact.

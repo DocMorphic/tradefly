@@ -16,6 +16,7 @@ class FakeBroker:
     def __init__(self): self.submissions=[];self.found={};self.cancelled=[];self.failure=None;self.holdings=[]
     def account(self): return ACCOUNT.copy()
     def positions(self): return self.holdings
+    def corporate_actions(self, start, end, token=None): return {'corporate_actions':{},'next_page_token':None}
     def clock(self): return {'is_open':True}
     def open_orders(self): return []
     def order(self,c): return self.found.get(c)

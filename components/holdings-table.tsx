@@ -30,8 +30,25 @@ export function HoldingsTable({ snapshot }: { snapshot: BackendSnapshot }) {
   const [pnl, setPnl] = useState<'all' | 'profit' | 'loss'>('all');
   const [from, setFrom] = useState(''),
     [to, setTo] = useState('');
+  const affected = new Set(
+    snapshot.corporate_actions?.issues.map((i) => i.symbol) ?? [],
+  );
+  const unavailable =
+    snapshot.corporate_actions?.performance_verified === false &&
+    !affected.size;
+  const displayPositions = snapshot.positions.map((p) =>
+    affected.has(p.symbol) || unavailable
+      ? {
+          ...p,
+          market_value: '',
+          unrealized_pl: '',
+          unrealized_plpc: '',
+          valuation_note: 'Unverified',
+        }
+      : p,
+  );
   const rows = selectHoldings(
-    holdingsWithFills(snapshot.positions, snapshot.orders),
+    holdingsWithFills(displayPositions, snapshot.orders),
     { sort, direction, query, pnl, from, to },
   );
   const table = useRef<HTMLTableElement>(null);
@@ -193,15 +210,30 @@ export function HoldingsTable({ snapshot }: { snapshot: BackendSnapshot }) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.symbol}>
-                <td>{row.symbol}</td>
+                <td>
+                  {row.symbol}
+                  {row.valuation_note && <small> · Unverified</small>}
+                </td>
                 <td>{number(row.qty)}</td>
                 <td>{number(row.avg_entry_price, true)}</td>
                 <td>{number(row.current_price, true)}</td>
                 <td>{number(row.market_value, true)}</td>
-                <td data-profit={Number(row.unrealized_pl) >= 0}>
-                  {number(row.unrealized_pl, true)}
+                <td
+                  data-profit={
+                    row.valuation_note
+                      ? undefined
+                      : Number(row.unrealized_pl) >= 0
+                  }
+                >
+                  {row.valuation_note || number(row.unrealized_pl, true)}
                 </td>
-                <td data-profit={Number(row.unrealized_plpc) >= 0}>
+                <td
+                  data-profit={
+                    row.valuation_note
+                      ? undefined
+                      : Number(row.unrealized_plpc) >= 0
+                  }
+                >
                   {row.unrealized_plpc &&
                   Number.isFinite(Number(row.unrealized_plpc))
                     ? `${(Number(row.unrealized_plpc) * 100).toFixed(2)}%`

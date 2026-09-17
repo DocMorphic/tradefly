@@ -479,7 +479,13 @@ export function EvidenceDesk({
             <Metric
               label="Current unrealized P&L"
               value={
-                records.position ? money(records.position.unrealized_pl) : '—'
+                s.corporate_actions?.performance_verified === false &&
+                (!s.corporate_actions.issues.length ||
+                  s.corporate_actions.issues.some((i) => i.symbol === stock))
+                  ? 'Unverified · corporate action'
+                  : records.position
+                    ? money(records.position.unrealized_pl)
+                    : '—'
               }
             />
           </div>

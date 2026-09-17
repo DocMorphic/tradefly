@@ -54,6 +54,17 @@ export async function POST(request: Request) {
       { error: 'A connected account and validated brain are required' },
       409,
     );
+  if (
+    (command === 'resume' || (command === 'decoder' && mode === 'learned')) &&
+    snapshot?.corporate_actions?.performance_verified === false
+  )
+    return json(
+      {
+        error:
+          'Corporate-action reconciliation is required before resuming or activating learned orders',
+      },
+      409,
+    );
   if (command === 'decoder') {
     if (!['original', 'learned', 'shadow'].includes(String(mode)))
       return json({ error: 'Unknown decoder' }, 400);

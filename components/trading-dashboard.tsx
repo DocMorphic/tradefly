@@ -70,7 +70,9 @@ export function Graph({
   markers = [],
   onTrace,
   extras,
+  emptyMessage,
 }: {
+  emptyMessage?: string;
   points: Point[];
   series: Series[];
   label: string;
@@ -118,8 +120,12 @@ export function Graph({
     return (
       <div className="trade-chart-empty">
         <span className="empty-axis" />
-        <b>No observations yet</b>
-        <span>This chart will appear when recorded data arrives.</span>
+        <b>{emptyMessage || 'No observations yet'}</b>
+        <span>
+          {emptyMessage
+            ? 'Recorded balances are retained; affected performance is withheld.'
+            : 'This chart will appear when recorded data arrives.'}
+        </span>
       </div>
     );
   const lo = Math.min(...all),
@@ -546,7 +552,13 @@ export function TradingDashboard({
   const equityPoints = equity.map((s) => ({
     at: s.at,
     gapBefore: s.gapBefore,
-    values: { pnl: s.pnl, equity: s.equity },
+    values: {
+      pnl: s.pnl,
+      equity:
+        data.valuation?.performance_verified === false && s.pnl === null
+          ? null
+          : s.equity,
+    },
   }));
   const hasBaseline = data.baseline !== null;
   const fillPoints = data.fills.map((f) => ({
@@ -574,10 +586,27 @@ export function TradingDashboard({
         </div>
         <span className="trade-update">As of {fmtTime(data.updatedAt)} ET</span>
       </div>
+      {data.valuation?.performance_verified === false && (
+        <div className="paper-alert" role="status">
+          <strong>Performance unverified</strong>
+          <p>{data.valuation.message}</p>
+          {data.valuation.issues.map((i) => (
+            <p key={i.id}>{i.reason}</p>
+          ))}
+          <small>
+            Raw broker balances are retained for audit. No corrected profit is
+            invented.
+          </small>
+        </div>
+      )}
       <div className="trade-metrics">
         <div>
           <span>Account change</span>
-          <strong className={tone(data.pnl)}>{signed(data.pnl)}</strong>
+          <strong className={tone(data.pnl)}>
+            {data.valuation?.performance_verified === false
+              ? 'Unverified'
+              : signed(data.pnl)}
+          </strong>
           <small>
             {data.baseline && data.pnl !== null
               ? percent((data.pnl / data.baseline) * 100)
@@ -586,9 +615,17 @@ export function TradingDashboard({
           </small>
         </div>
         <div>
-          <span>Account value</span>
+          <span>
+            {data.valuation?.performance_verified === false
+              ? 'Broker value · unverified'
+              : 'Account value'}
+          </span>
           <strong>{money(data.equity)}</strong>
-          <small>Cash + marked positions</small>
+          <small>
+            {data.valuation?.performance_verified === false
+              ? 'Reported balance; do not treat as valid performance'
+              : 'Cash + marked positions'}
+          </small>
         </div>
         <div>
           <span>Cash available</span>
@@ -638,6 +675,11 @@ export function TradingDashboard({
           >
             <Graph
               key={`equity-${range}`}
+              emptyMessage={
+                data.valuation?.performance_verified === false
+                  ? 'Performance withheld pending reconciliation'
+                  : undefined
+              }
               label="Account change over time"
               gaps
               points={equityPoints.map((p) => ({
@@ -676,6 +718,12 @@ export function TradingDashboard({
                   : ''}{' '}
                 · hover to inspect
               </span>
+              {data.valuation?.performance_verified === false && (
+                <span>
+                  Affected profit readings withheld; earlier history remains
+                  visible.
+                </span>
+              )}
               {equity.length > 0 && (
                 <span>
                   {fmtTime(equity[0].at)} – {fmtTime(equity.at(-1)!.at)} ET
@@ -1034,6 +1082,11 @@ export function TradingDashboard({
                 },
               ]}
               label="Observed account drawdown"
+              emptyMessage={
+                data.valuation?.performance_verified === false
+                  ? 'Drawdown withheld pending reconciliation'
+                  : undefined
+              }
               gaps
               referenceLabel="Peak"
               reference={0}

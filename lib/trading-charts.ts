@@ -53,13 +53,14 @@ export type TradingData = {
   cash: number | null;
   pnl: number | null;
   baseline: number | null;
+  valuation?: BackendSnapshot['corporate_actions'];
   historyInfo?: BackendSnapshot['equity_history_info'];
   series: {
     at: number;
     equity: number;
     cash: number | null;
     pnl: number | null;
-    drawdown: number;
+    drawdown: number | null;
     gapBefore?: boolean;
   }[];
   bars: MarketPoint[];
@@ -96,6 +97,13 @@ export function equitySeries(
 }
 export function paperTradingData(s: BackendSnapshot): TradingData {
   const baseline = finite(s.baseline?.equity);
+  const unverified = s.corporate_actions?.performance_verified === false;
+  const affected = new Set(
+    s.corporate_actions?.issues.map((i) => i.symbol) ?? [],
+  );
+  const invalidFrom = s.corporate_actions?.affected_since
+    ? Date.parse(s.corporate_actions.affected_since)
+    : -Infinity;
   const decisions = s.decisions
     .map((d) => ({
       id: d.id,
@@ -158,7 +166,8 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
     positionsKnown: s.broker.connected || s.positions.length > 0,
     equity: finite(s.account.equity),
     cash: finite(s.account.cash),
-    pnl: finite(s.equity_change_usd),
+    pnl: unverified ? null : finite(s.equity_change_usd),
+    valuation: s.corporate_actions,
     baseline,
     historyInfo: s.equity_history_info,
     series: equitySeries(
@@ -176,6 +185,10 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
             ],
       ),
       baseline,
+    ).map((p) =>
+      unverified && p.at >= invalidFrom
+        ? { ...p, pnl: null, drawdown: null }
+        : p,
     ),
     bars: [...bars.values()].sort((a, b) => a.at - b.at),
     decisions,
@@ -183,8 +196,12 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
     positions: s.positions.map((p) => ({
       symbol: p.symbol,
       value: finite(p.market_value),
-      pnl: finite(p.unrealized_pl),
+      pnl:
+        unverified && (affected.has(p.symbol) || !affected.size)
+          ? null
+          : finite(p.unrealized_pl),
       returnPct:
+        (unverified && (affected.has(p.symbol) || !affected.size)) ||
         finite(p.unrealized_plpc) === null
           ? null
           : finite(p.unrealized_plpc)! * 100,

@@ -140,9 +140,46 @@ try {
     snapshot,
   );
   assert.equal((await call('/api/swarm', { headers: auth })).status, 200);
-  assert.equal((await post('/api/backend', {command:'decoder',mode:'learned'}, auth)).status,409);
-  assert.equal((await post('/api/backend', {command:'decoder',mode:'shadow'}, auth)).status,200);
-  assert.equal((await post('/api/backend', {command:'decoder',mode:'invalid'}, auth)).status,400);
+  const flagged = {
+    ...snapshot,
+    brain: { ready: true },
+    broker: { connected: true },
+    corporate_actions: { performance_verified: false },
+  };
+  assert.equal(
+    (await post('/api/bridge', flagged, { Authorization: 'Bearer ' + bridge }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'resume' }, auth)).status,
+    409,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'decoder', mode: 'learned' }, auth))
+      .status,
+    409,
+  );
+  assert.equal(
+    (await post('/api/bridge', snapshot, { Authorization: 'Bearer ' + bridge }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'decoder', mode: 'learned' }, auth))
+      .status,
+    409,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'decoder', mode: 'shadow' }, auth))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'decoder', mode: 'invalid' }, auth))
+      .status,
+    400,
+  );
   assert.equal(
     (await post('/api/market-history', { symbol: 'FEMY' }, auth)).status,
     200,
