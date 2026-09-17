@@ -2,10 +2,13 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { FlyActivity } from './activity';
 import { makeWings } from './wings';
+import type { BackendSnapshot } from '../backend';
+import { paintTradingScreen } from './trading-screen';
 export function makeFlyScene(
   host: HTMLElement,
   read: () => FlyActivity,
   moving: () => boolean,
+  telemetry: () => BackendSnapshot | null,
 ) {
   const scene = new T.Scene();
   scene.background = new T.Color('#17132d');
@@ -23,7 +26,7 @@ export function makeFlyScene(
   renderer.toneMappingExposure = 1.2;
   renderer.domElement.setAttribute(
     'aria-label',
-    'Friendly fly gently typing in front of a large illustrative trading chart',
+    'Friendly fly at a trading desk showing measured paper account equity',
   );
   renderer.domElement.setAttribute('role', 'img');
   host.appendChild(renderer.domElement);
@@ -229,75 +232,9 @@ export function makeFlyScene(
     visible = entries[0]?.isIntersecting ?? false;
   });
   visibility.observe(host);
-  function paint(a: FlyActivity) {
-    const c = ctx!;
-    c.fillStyle = '#111b27';
-    c.fillRect(0, 0, 1200, 660);
-    c.fillStyle = '#b6bcd9';
-    c.font = '24px monospace';
-    c.fillText('TRADEFLY  /  TRADING DESK', 35, 48);
-    c.fillStyle = '#53617c';
-    c.fillRect(32, 70, 1136, 1);
-    c.fillStyle = '#eff3ff';
-    c.font = 'bold 37px monospace';
-    c.fillText('MARKET WATCH', 35, 124);
-    c.fillStyle = '#8b9bb0';
-    c.font = '20px monospace';
-    c.fillText('PAPER ACTIVITY', 885, 119);
-    c.fillStyle = '#e1d9f5';
-    c.font = 'bold 30px monospace';
-    c.fillText(a.symbol.slice(0, 12), 885, 168);
-    c.font = '20px monospace';
-    c.fillStyle = '#98a7bb';
-    c.fillText(a.mood, 885, 205);
-    for (let i = 0; i < 6; i++) {
-      c.strokeStyle = '#253347';
-      c.lineWidth = 1;
-      c.beginPath();
-      c.moveTo(36, 170 + i * 65);
-      c.lineTo(840, 170 + i * 65);
-      c.stroke();
-    }
-    // Deliberately fixed decorative candles, never presented as market prices.
-    let previous = 360;
-    for (let i = 0; i < 44; i++) {
-      const close =
-        370 - i * 3.2 + Math.sin(i * 0.72) * 42 + Math.sin(i * 2.1) * 15;
-      const open = previous;
-      const green = close < open;
-      const x = 48 + i * 18;
-      c.strokeStyle = c.fillStyle = green ? '#66d9aa' : '#f27886';
-      c.lineWidth = 2;
-      c.beginPath();
-      c.moveTo(x + 5, Math.min(open, close) - 12 - (i % 7));
-      c.lineTo(x + 5, Math.max(open, close) + 14);
-      c.stroke();
-      c.fillRect(
-        x,
-        Math.min(open, close),
-        10,
-        Math.max(4, Math.abs(close - open)),
-      );
-      c.globalAlpha = 0.45;
-      const volume = 15 + (Math.sin(i * 1.9) + 1) * 33;
-      c.fillRect(x, 548 - volume, 10, volume);
-      c.globalAlpha = 1;
-      previous = close;
-    }
-    c.fillStyle = '#8b9bb0';
-    c.font = '18px monospace';
-    c.fillText('BUY OUTPUT', 885, 290);
-    c.fillText('SELL OUTPUT', 885, 387);
-    c.font = 'bold 32px monospace';
-    c.fillStyle = '#66d9aa';
-    c.fillText(a.buyHz === null ? '—' : a.buyHz.toFixed(1) + ' Hz', 885, 335);
-    c.fillStyle = '#f27886';
-    c.fillText(a.sellHz === null ? '—' : a.sellHz.toFixed(1) + ' Hz', 885, 433);
-    c.fillStyle = '#253347';
-    c.fillRect(32, 583, 1136, 1);
-    c.fillStyle = '#a2aec2';
-    c.font = '20px monospace';
-    c.fillText('ILLUSTRATIVE CHART  ·  LIVE PAPER READINGS AT RIGHT', 35, 625);
+  let lastSnapshot: BackendSnapshot | null = null;
+  function paint(a: FlyActivity, snapshot: BackendSnapshot | null) {
+    paintTradingScreen(ctx!, a, snapshot);
     texture.needsUpdate = true;
   }
   renderer.setAnimationLoop((now) => {
@@ -309,8 +246,10 @@ export function makeFlyScene(
       active = moving();
     if (active) t += dt;
     const key = a.mood + a.symbol + a.buyHz + a.sellHz;
-    if (key !== lastText) {
-      paint(a);
+    const snapshot = telemetry();
+    if (key !== lastText || snapshot !== lastSnapshot) {
+      paint(a, snapshot);
+      lastSnapshot = snapshot;
       lastText = key;
     }
     // One quiet desk loop, independent of orders, decisions and broker state.

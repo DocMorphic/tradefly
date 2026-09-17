@@ -12,6 +12,8 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
     [now, setNow] = useState(0),
     [status, setStatus] = useState('Loading the 3D habitat…');
   const activity = flyActivity(backend.data.snapshot, backend.stale, now);
+  const telemetry = useRef(backend.data.snapshot);
+  telemetry.current = backend.data.snapshot;
   const current = useRef(activity),
     moving = useRef(motion);
   current.current = activity;
@@ -38,6 +40,7 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
             host.current,
             () => current.current,
             () => moving.current,
+            () => telemetry.current,
           );
           setStatus('');
         } catch {
@@ -115,9 +118,10 @@ export function FlyHabitat({ backend }: { backend: PaperBackend }) {
         </span>
       </div>
       <footer>
-        A little company while the experiment runs. Typing and the screen’s
-        red/green chart are decorative; readings above come from paper
-        telemetry. Pause motion only stops the animation.
+        The screen shows measured paper-account equity, gain/loss since the
+        experiment began, and the latest neural readings. Green/red segments
+        show equity rising/falling. Typing is decorative; pausing motion does
+        not stop data updates.
       </footer>
     </div>
   );
