@@ -8,6 +8,7 @@ from .alpaca import Alpaca, BrokerError
 from .config import Settings,validate_watchlist
 from .domain import UTC, NY, completed_bars, decode, digest, encode, instant, now_iso, number, size_order
 from .storage import Ledger
+from .reconciliation import checks as position_checks, KEY as QUARANTINES
 
 TERMINAL = {'filled','canceled','expired','rejected'}
 def public_order(order):
@@ -89,13 +90,7 @@ class Engine:
         if any(o['client_order_id'] not in own for o in self.open_orders): result.append('Unrelated open orders in paper account')
         if any(p['symbol'] not in self.watchlist or number(p['qty'])<0 for p in self.positions):
             result.append('Untracked or short positions in paper account')
-        expected={}
-        for row in self.ledger.orders():
-            if not row['broker']: continue
-            order=json.loads(row['broker']);symbol=order.get('symbol') or json.loads(row['payload']).get('symbol',self.settings.symbol)
-            expected[symbol]=expected.get(symbol,number(0))+number(order.get('filled_qty') or 0)*(1 if order.get('side')=='buy' else -1)
-        actual={p['symbol']:number(p['qty']) for p in self.positions}
-        if any(abs(expected.get(symbol,number(0))-actual.get(symbol,number(0)))>number('0.000001') for symbol in set(expected)|set(actual)):
+        if any(check['blocking'] for check in position_checks(self)):
             result.append('Broker holdings disagree with Tradefly fills')
         if any(r['status']=='uncertain' for r in self.ledger.orders()): result.append('Unresolved submission outcome')
         return result
@@ -137,6 +132,9 @@ class Engine:
     def submit_intent(self, decision, position, asset):
         action=decision['action']
         if self.paused: return None
+        symbol=decision.get('symbol',self.symbol)
+        if symbol in (self.ledger.get(QUARANTINES) or {}):
+            self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':symbol,'reason':'Position quarantined after broker discrepancy'});return None
         if any(r['status'] not in TERMINAL for r in self.ledger.orders()):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':'An order is still unresolved'});return None
         budget=number(self.settings.max_order)
@@ -267,7 +265,7 @@ class Engine:
         pilot=json.loads(replay_path.read_text()) if replay_path.exists() else None
         check_path=self.settings.database.parent/'watchlist-check.json'
         check=json.loads(check_path.read_text()) if check_path.exists() else None
-        return {'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
+        return {'position_checks':position_checks(self),'watchlist_check':check,'pilot_replay':pilot,'schema':1,'mode':'alpaca-paper','last_command_id':self.last_command_id,'updated_at':now_iso(),'paused':self.paused,'message':self.message,
             'broker':{'connected':self.connected,'endpoint':'paper-api.alpaca.markets','credentials_configured':self.settings.credentials_present},
             'brain':{'ready':bool(self.brain and self.brain.ready),'loaded':self.brain is not None,
                      'manifest':manifest,'validation':validation},

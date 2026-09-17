@@ -606,6 +606,27 @@ export function PaperView({
           )}
           {id === 'overview' && charts && (
             <>
+              {!!s.position_checks?.length && (
+                <div className="paper-alert" role="status">
+                  {s.position_checks.map((check) => (
+                    <p key={check.symbol}>
+                      <strong>
+                        {check.symbol} ·{' '}
+                        {check.quarantined
+                          ? 'Trading excluded'
+                          : 'Position mismatch'}
+                      </strong>
+                      {' — '}Recorded fills: {check.expected_qty} shares.
+                      Broker: {check.broker_qty} shares.
+                      {check.status === 'returned'
+                        ? ' Position now matches; exclusion remains until reviewed.'
+                        : ' Broker discrepancy remains unresolved.'}{' '}
+                      Original fills are preserved. Performance uses broker
+                      balances and may be affected by this discrepancy.
+                    </p>
+                  ))}
+                </div>
+              )}
               {!!s.blockers.length && (
                 <details className="paper-blockers">
                   <summary>

@@ -157,6 +157,16 @@ export type BackendSnapshot = {
   };
   baseline: { equity: string; at: string } | null;
   equity_change_usd: number | null;
+  position_checks?: {
+    symbol: string;
+    expected_qty: string;
+    broker_qty: string;
+    quarantined: boolean;
+    blocking: boolean;
+    status: string;
+    reason: string | null;
+    recorded_at: string | null;
+  }[];
   blockers: string[];
   decisions: PaperDecision[];
   decision_count: number;
