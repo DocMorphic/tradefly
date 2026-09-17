@@ -311,7 +311,7 @@ export default function Desktop() {
       </a>
       <header className="menubar">
         <button className="brand" onClick={() => open('overview')}>
-          <Activity size={19} />
+          <img src="/tradefly-mark.svg" width={26} height={26} alt="" />
           <b>tradefly</b>
           <span>OS</span>
         </button>

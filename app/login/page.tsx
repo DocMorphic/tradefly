@@ -52,9 +52,22 @@ export default function Login() {
           }
         }}
       >
-        <span className="owner-wordmark">tradefly</span>
+        <span className="owner-wordmark">
+          <img
+            src="/tradefly-mark.svg"
+            width={40}
+            height={40}
+            alt=""
+            style={{
+              display: 'inline-block',
+              verticalAlign: 'middle',
+              marginRight: 12,
+            }}
+          />
+          tradefly
+        </span>
         <h1>Open your trading desk</h1>
-        <p>Your paper account and trading controls are private.</p>
+        <p>Everyone can watch. Only you can control the flies.</p>
         <label htmlFor="owner-key">Owner access key</label>
         <input
           id="owner-key"
