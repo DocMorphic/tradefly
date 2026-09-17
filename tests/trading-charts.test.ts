@@ -145,3 +145,32 @@ test('demo charts never add future fills or fabricate candle OHLC values', () =>
   assert.ok(data.fills.every((f) => f.at <= data.updatedAt));
   assert.equal(data.fills.length, SESSION[9].trades.length);
 });
+
+test('All time retains old history while 6H uses the snapshot clock', async () => {
+  const { accountRange } = await import('../lib/trading-charts.ts');
+  const s = snapshot();
+  s.updated_at = '2026-09-17T14:00:00Z';
+  s.equity_history = [
+    { at: '2026-09-14T00:00:00Z', equity: '100', cash: '50' },
+    { at: '2026-09-17T07:59:00Z', equity: '120', cash: '50' },
+    {
+      at: '2026-09-17T08:00:00Z',
+      equity: '110',
+      cash: '50',
+      drawdown: -20,
+      gap_before: false,
+    },
+    { at: '2026-09-17T13:00:00Z', equity: '115', cash: '50', gap_before: true },
+  ];
+  const data = paperTradingData(s);
+  assert.equal(accountRange(data, 'all').length, 4);
+  assert.equal(accountRange(data, '6').length, 2);
+  assert.equal(accountRange(data, '1').length, 1);
+  assert.equal(
+    data.series[2].drawdown,
+    -20,
+    'Use drawdown computed before downsampling',
+  );
+  assert.equal(data.series[2].gapBefore, false);
+  assert.equal(data.series[3].gapBefore, true);
+});

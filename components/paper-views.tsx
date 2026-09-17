@@ -323,7 +323,8 @@ function EquityHistory({ s }: { s: BackendSnapshot }) {
   return (
     <figure className="paper-equity">
       <figcaption>
-        Observed account equity · USD · latest {samples.length} samples
+        Observed account equity · USD · full recorded timespan ·{' '}
+        {samples.length} plotted points
       </figcaption>
       <svg
         {...cursor.props}

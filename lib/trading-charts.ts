@@ -53,12 +53,14 @@ export type TradingData = {
   cash: number | null;
   pnl: number | null;
   baseline: number | null;
+  historyInfo?: BackendSnapshot['equity_history_info'];
   series: {
     at: number;
     equity: number;
     cash: number | null;
     pnl: number | null;
     drawdown: number;
+    gapBefore?: boolean;
   }[];
   bars: MarketPoint[];
   decisions: ChartDecision[];
@@ -69,7 +71,13 @@ export type TradingData = {
   source: string;
 };
 export function equitySeries(
-  rows: { at: number; equity: number; cash: number | null }[],
+  rows: {
+    at: number;
+    equity: number;
+    cash: number | null;
+    drawdown?: number;
+    gapBefore?: boolean;
+  }[],
   baseline: number | null,
 ) {
   let peak = 0;
@@ -81,7 +89,8 @@ export function equitySeries(
       return {
         ...r,
         pnl: baseline === null ? null : r.equity - baseline,
-        drawdown: peak > 0 ? (r.equity / peak - 1) * 100 : 0,
+        drawdown:
+          finite(r.drawdown) ?? (peak > 0 ? (r.equity / peak - 1) * 100 : 0),
       };
     });
 }
@@ -151,6 +160,7 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
     cash: finite(s.account.cash),
     pnl: finite(s.equity_change_usd),
     baseline,
+    historyInfo: s.equity_history_info,
     series: equitySeries(
       (s.equity_history || []).flatMap((r) =>
         finite(r.equity) === null
@@ -158,6 +168,8 @@ export function paperTradingData(s: BackendSnapshot): TradingData {
           : [
               {
                 at: Date.parse(r.at),
+                drawdown: r.drawdown,
+                gapBefore: r.gap_before,
                 equity: finite(r.equity)!,
                 cash: finite(r.cash),
               },
@@ -257,4 +269,10 @@ export function selectedMarket(
   limit: number,
 ) {
   return data.bars.filter((b) => b.symbol === symbol).slice(-limit);
+}
+
+export function accountRange(data: TradingData, range: string) {
+  const cutoff =
+    range === 'all' ? -Infinity : data.updatedAt - Number(range) * 3600000;
+  return data.series.filter((p) => p.at >= cutoff);
 }

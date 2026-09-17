@@ -7,7 +7,7 @@ import type {
   ChartDecision,
   ChartFill,
 } from '@/lib/trading-charts';
-import { selectedMarket } from '@/lib/trading-charts';
+import { selectedMarket, accountRange } from '@/lib/trading-charts';
 import { validChartSymbol } from '@/lib/market-history';
 import { useMarketHistory } from '@/components/use-market-history';
 
@@ -48,6 +48,7 @@ type Point = {
   high?: number;
   low?: number;
   id?: string;
+  gapBefore?: boolean;
 };
 type Series = {
   key: string;
@@ -308,7 +309,9 @@ export function Graph({
                 prev &&
                 pv !== null &&
                 pv !== undefined &&
-                (!gaps || p.at - prev.at <= 450000);
+                (!gaps ||
+                  (p.gapBefore !== true &&
+                    (p.gapBefore === false || p.at - prev.at <= 450000)));
               return (
                 <g key={i}>
                   {connect && (
@@ -525,11 +528,7 @@ export function TradingDashboard({
       : (history.history?.bars ?? []).slice(-limit),
     lastBar = bars.at(-1),
     change = bars.length > 1 ? lastBar!.close - bars[0].close : null;
-  const cutoff =
-    range === 'all'
-      ? -Infinity
-      : (data.series.at(-1)?.at ?? data.updatedAt) - Number(range) * 3600000;
-  const equity = data.series.filter((s) => s.at >= cutoff);
+  const equity = accountRange(data, range);
   const decisions = data.decisions.slice(-60),
     latest = decisions.at(-1);
   const positions = [...data.positions].sort(
@@ -546,6 +545,7 @@ export function TradingDashboard({
   const fmtTime = (t: number) => clock(t, data.demo, true);
   const equityPoints = equity.map((s) => ({
     at: s.at,
+    gapBefore: s.gapBefore,
     values: { pnl: s.pnl, equity: s.equity },
   }));
   const hasBaseline = data.baseline !== null;
@@ -623,7 +623,7 @@ export function TradingDashboard({
                 {[
                   ['1', '1H'],
                   ['6', '6H'],
-                  ['all', 'All'],
+                  ['all', 'All time'],
                 ].map(([v, l]) => (
                   <button
                     key={v}
@@ -669,7 +669,18 @@ export function TradingDashboard({
                   </span>
                 </>
               )}
-              <span>{equity.length} saved samples · hover to inspect</span>
+              <span>
+                {equity.length} plotted points
+                {range === 'all' && data.historyInfo?.downsampled
+                  ? ` from ${data.historyInfo.total.toLocaleString()} saved samples`
+                  : ''}{' '}
+                · hover to inspect
+              </span>
+              {equity.length > 0 && (
+                <span>
+                  {fmtTime(equity[0].at)} – {fmtTime(equity.at(-1)!.at)} ET
+                </span>
+              )}
             </footer>
           </Card>
         )}
@@ -1006,11 +1017,12 @@ export function TradingDashboard({
         <div className="trade-card-grid">
           <Card
             title="How far below the peak?"
-            note="Drawdown within the saved samples · 0% is a new high"
+            note="Drawdown from the full recorded account history · 0% is a new high"
           >
             <Graph
               points={equity.map((s) => ({
                 at: s.at,
+                gapBefore: s.gapBefore,
                 values: { drawdown: s.drawdown },
               }))}
               series={[

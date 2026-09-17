@@ -107,7 +107,20 @@ export type BackendSnapshot = {
   };
   max_observed_drawdown_pct: number;
   equity_sample_count: number;
-  equity_history: { at: string; equity: string; cash: string }[];
+  equity_history_info?: {
+    total: number;
+    plotted: number;
+    from: string | null;
+    through: string | null;
+    downsampled: boolean;
+  };
+  equity_history: {
+    at: string;
+    equity: string;
+    cash: string;
+    drawdown?: number;
+    gap_before?: boolean;
+  }[];
   schema: number;
   mode: 'alpaca-paper';
   last_command_id: string | null;

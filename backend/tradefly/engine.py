@@ -265,6 +265,8 @@ class Engine:
         validation=json.loads(validation_path.read_text()) if validation_path.exists() else None
         decisions=self.ledger.decisions(100)
         samples=self.ledger.equity_samples()
+        from .equity_history import chart_history
+        equity_history,history_info=chart_history(samples)
         peak=0.;drawdown=0.
         for sample in samples:
             equity=float(sample['equity']);peak=max(peak,equity)
@@ -288,6 +290,6 @@ class Engine:
             'limits':{'max_order_usd':100,'max_exposure_pct':10,'long_only':True},
             'baseline':baseline,'equity_change_usd':delta,
             'max_observed_drawdown_pct':drawdown*100,'equity_sample_count':len(samples),
-            'equity_history':samples[-500:],'blockers':self.blockers(),
+            'equity_history':equity_history,'equity_history_info':history_info,'blockers':self.blockers(),
             'decisions':decisions[-100:],'decision_count':self.ledger.decision_count(),'orders':orders[-100:],
             'events':self.ledger.events(50),'export_note':'Latest 100 decisions/orders on desktop; complete history in local SQLite and local report export.'}

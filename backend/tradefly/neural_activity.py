@@ -42,9 +42,9 @@ def bounded_activity_snapshot(snapshot):
     for d in decisions:
         activity=d.get('neural',{}).pop('activity',None)
         if activity is not None:candidates.append((d,activity))
-    budget=min(200000,max(0,850000-len(json.dumps(snapshot,separators=(',',':')))))
+    budget=min(200000,max(0,850000-len(json.dumps(snapshot))))
     for d,activity in reversed(candidates[-3:]):
-        size=len(json.dumps(activity,separators=(',',':')))+16
+        size=len(json.dumps(activity))+16
         if size>budget:continue
         d['neural']['activity']=activity;budget-=size
     return snapshot
