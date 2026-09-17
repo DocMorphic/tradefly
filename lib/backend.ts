@@ -165,6 +165,7 @@ export type BackendSnapshot = {
   export_note: string;
 };
 export type BackendResponse = {
+  can_control?: boolean;
   snapshot: BackendSnapshot | null;
   received_at?: string;
   command?: string;

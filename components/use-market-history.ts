@@ -14,11 +14,12 @@ export function useMarketHistory(symbol: string, enabled: boolean) {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     let requestedAt = 0;
+    let canQueue = true;
     const poll = async () => {
       let pending = false;
       try {
-        const queue = Date.now() - requestedAt > 60000;
-        const response = await fetch(
+        const queue = canQueue && Date.now() - requestedAt > 60000;
+        let response = await fetch(
           queue
             ? '/api/market-history'
             : `/api/market-history?symbol=${encodeURIComponent(symbol)}`,
@@ -33,6 +34,13 @@ export function useMarketHistory(symbol: string, enabled: boolean) {
             signal: controller.signal,
           },
         );
+        if (queue && response.status === 401) {
+          canQueue = false;
+          response = await fetch(
+            `/api/market-history?symbol=${encodeURIComponent(symbol)}`,
+            { signal: controller.signal },
+          );
+        }
         if (!response.ok)
           throw new Error(
             response.status === 401

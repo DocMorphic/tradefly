@@ -65,19 +65,44 @@ try {
   assert.equal((await call('/login')).status, 200);
   assert.equal(
     (
-      await call('/api/backend', {
-        headers: { 'oai-authenticated-user-id': 'forged' },
-      })
+      await post(
+        '/api/backend',
+        { command: 'pause' },
+        { 'oai-authenticated-user-id': 'forged' },
+      )
     ).status,
     401,
   );
+  for (const command of ['pause', 'resume', 'watchlist']) {
+    assert.equal((await post('/api/backend', { command })).status, 401);
+  }
+  for (const action of ['step', 'reset', 'config', 'focus']) {
+    assert.equal(
+      (await post('/api/swarm', { action, revision: 0 })).status,
+      401,
+    );
+  }
+  assert.equal(
+    (await post('/api/market-history', { symbol: 'FEMY' })).status,
+    401,
+  );
+  assert.equal((await call('/api/market-history/bridge')).status, 401);
+  assert.equal((await call('/api/swarm')).status, 200);
+  assert.equal((await call('/api/swarm/stream')).status, 200);
   assert.equal((await post('/api/session', { key: 'wrong' })).status, 401);
   const signedIn = await post('/api/session', { key: owner });
   assert.equal(signedIn.status, 200);
   assert.match(signedIn.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
   cookie = signedIn.headers.get('set-cookie').split(';')[0];
   const auth = { cookie };
-  assert.equal((await call('/api/backend', { headers: auth })).status, 200);
+  assert.equal(
+    (await (await call('/api/backend', { headers: auth })).json()).can_control,
+    true,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'pause' }, auth)).status,
+    200,
+  );
   assert.equal(
     (await post('/api/backend', { command: 'resume' }, auth)).status,
     409,
@@ -165,7 +190,20 @@ try {
     headers: { Origin: origin, ...auth },
   });
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
-  assert.equal((await call('/api/backend')).status, 401);
+  const publicData = await (await call('/api/backend')).json();
+  assert.equal(publicData.can_control, false);
+  assert.deepEqual(publicData.snapshot, snapshot);
+  assert.equal((await call('/api/market-history?symbol=FEMY')).status, 200);
+  await post(
+    '/api/bridge',
+    {
+      ...snapshot,
+      account: { id: 'private', account_number: 'private', equity: '100' },
+    },
+    { Authorization: 'Bearer ' + bridge },
+  );
+  const redacted = await (await call('/api/backend')).json();
+  assert.deepEqual(redacted.snapshot.account, { equity: '100' });
   console.log(
     'Vercel production checks passed: pages, owner login, forged-header rejection, origin checks, resume guard, telemetry, research state, delayed-chart queue/cache and logout.',
   );

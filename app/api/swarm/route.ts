@@ -21,11 +21,11 @@ async function load(): Promise<Row> {
     .first<Row>())!;
 }
 export async function GET(request: Request) {
-  if (!(await userAllowed(request)))
-    return json({ error: 'Unauthorized' }, 401);
+  const canControl = await userAllowed(request);
   try {
     const row = await load();
     return json({
+      can_control: canControl,
       revision: row.revision,
       snapshot: FlySwarmEngine.restore(JSON.parse(row.state)).snapshot(),
     });

@@ -25,8 +25,6 @@ async function read(symbol: string) {
   });
 }
 export async function GET(request: Request) {
-  if (!(await userAllowed(request)) && !(await tokenAllowed(request)))
-    return json({ error: 'Sign in required' }, 401);
   const symbol = new URL(request.url).searchParams.get('symbol');
   if (!validChartSymbol(symbol))
     return json({ error: 'Enter a valid stock symbol' }, 400);
@@ -47,11 +45,13 @@ export async function POST(request: Request) {
   const now = Date.now();
   // A single queued request per symbol; frequent browser polling never postpones it.
   await database()
-    .prepare(`INSERT INTO market_history(symbol, requested_at)
+    .prepare(
+      `INSERT INTO market_history(symbol, requested_at)
     SELECT ?, ? WHERE (SELECT COUNT(*) FROM market_history WHERE requested_at > attempted_at) < 100
     ON CONFLICT(symbol) DO UPDATE SET requested_at = excluded.requested_at
     WHERE market_history.requested_at <= market_history.attempted_at
-      AND market_history.attempted_at < ? AND COALESCE(market_history.fetched_at, 0) < ?`)
+      AND market_history.attempted_at < ? AND COALESCE(market_history.fetched_at, 0) < ?`,
+    )
     .bind(symbol, now, now - 60000, now - 300000)
     .run();
   return read(symbol);

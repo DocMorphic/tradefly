@@ -95,6 +95,7 @@ export function useBackend() {
     value: 'pause' | 'resume' | 'watchlist',
     symbols?: string[],
   ) {
+    if (!data.can_control) return;
     setBusy(true);
     try {
       const r = await fetch('/api/backend', {
@@ -527,6 +528,7 @@ export function PaperView({
           </small>
         </div>
         <div className="paper-actions">
+          {!data.can_control && <span>Public view · owner controls only</span>}
           {s && (
             <button
               onClick={() => exportData(s)}
@@ -538,7 +540,11 @@ export function PaperView({
           )}
           <button
             disabled={
-              busy || !s || stale || (!s.paused && data.command === 'pause')
+              !data.can_control ||
+              busy ||
+              !s ||
+              stale ||
+              (!s.paused && data.command === 'pause')
             }
             onClick={() => command('pause')}
           >
@@ -547,6 +553,7 @@ export function PaperView({
           </button>
           <button
             disabled={
+              !data.can_control ||
               busy ||
               stale ||
               !s?.brain.ready ||

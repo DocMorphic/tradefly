@@ -8,7 +8,11 @@ import type {
   TokenResult,
   HolderResult,
 } from '@/lib/swarm/types';
-type Desk = { snapshot: SwarmSnapshot; revision: number };
+type Desk = {
+  can_control?: boolean;
+  snapshot: SwarmSnapshot;
+  revision: number;
+};
 const views = [
   'Radar',
   'Funding trace',
@@ -73,7 +77,7 @@ export function SwarmResearch() {
     }
   }
   async function act(action: string, extra: Record<string, unknown> = {}) {
-    if (!latest.current || pending.current) return;
+    if (!latest.current?.can_control || pending.current) return;
     pending.current = true;
     setBusy(true);
     try {
@@ -87,6 +91,7 @@ export function SwarmResearch() {
         }),
       });
       const d = (await r.json()) as Desk & { error?: string };
+      d.can_control = latest.current?.can_control;
       if (!r.ok) {
         if (r.status === 409) await refresh();
         throw new Error(d.error);
@@ -247,7 +252,7 @@ export function SwarmResearch() {
           <span className="swarm-eyebrow">RESEARCH / FLYSWARM</span>
           <h2>Follow the evidence.</h2>
         </div>
-        <button onClick={exportDesk} disabled={!s}>
+        <button onClick={exportDesk} disabled={!s || !desk?.can_control}>
           <Download size={15} /> Export
         </button>
       </header>
@@ -270,15 +275,21 @@ export function SwarmResearch() {
           {s?.focusToken?.symbol || 'Rotating sample tokens'}
         </span>
         <div>
-          <button disabled={!s} onClick={() => setRunning(!running)}>
+          <button
+            disabled={!s || !desk?.can_control}
+            onClick={() => setRunning(!running)}
+          >
             {running ? <Pause size={14} /> : <Play size={14} />}{' '}
             {running ? 'Pause scenario' : 'Run scenario'}
           </button>
-          <button disabled={!s || busy} onClick={() => act('step')}>
+          <button
+            disabled={!s || busy || !desk?.can_control}
+            onClick={() => act('step')}
+          >
             Step
           </button>
           <button
-            disabled={!s || busy}
+            disabled={!s || busy || !desk?.can_control}
             onClick={() => {
               setRunning(false);
               void act('reset');
@@ -405,7 +416,7 @@ export function SwarmResearch() {
                     </button>
                   </p>
                   <button
-                    disabled={!s || busy}
+                    disabled={!s || busy || !desk?.can_control}
                     onClick={() => {
                       void act('focus', {
                         symbol: token.symbol.slice(0, 18),
@@ -801,7 +812,9 @@ export function SwarmResearch() {
                 }}
               />
             </label>
-            <button disabled={busy}>Save scenario settings</button>
+            <button disabled={busy || !desk?.can_control}>
+              Save scenario settings
+            </button>
           </form>
           <div className="swarm-metrics">
             <Metric

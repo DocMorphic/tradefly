@@ -1,13 +1,14 @@
+import { publicSnapshot } from '@/lib/server/public-snapshot';
 import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, state, userAllowed } from '@/lib/server/backend-store';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
-  if (!(await userAllowed(request)))
-    return json({ error: 'Sign in required' }, 401);
+  const canControl = await userAllowed(request);
   try {
     const row = await state();
     return json({
-      snapshot: row?.snapshot ? JSON.parse(row.snapshot) : null,
+      snapshot: row?.snapshot ? publicSnapshot(JSON.parse(row.snapshot)) : null,
+      can_control: canControl,
       received_at: row?.received_at,
       command: row?.command ?? 'pause',
       command_id: row?.command_id ?? 'initial',
@@ -81,8 +82,10 @@ export async function POST(request: Request) {
   }
   const id = crypto.randomUUID();
   await database()
-    .prepare(`INSERT INTO backend_state(id,command,command_id,command_at,command_payload) VALUES(1,?,?,?,?)
-    ON CONFLICT(id) DO UPDATE SET command=excluded.command,command_id=excluded.command_id,command_at=excluded.command_at,command_payload=excluded.command_payload`)
+    .prepare(
+      `INSERT INTO backend_state(id,command,command_id,command_at,command_payload) VALUES(1,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET command=excluded.command,command_id=excluded.command_id,command_at=excluded.command_at,command_payload=excluded.command_payload`,
+    )
     .bind(
       command,
       id,

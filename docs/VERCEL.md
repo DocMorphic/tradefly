@@ -2,7 +2,7 @@
 
 The repository supports both the existing Sites/Cloudflare deployment and a Next.js deployment on Vercel. Vercel runs the desktop and API routes; the two fly simulations and Alpaca/chart workers still run on your Mac. A free Turso **libSQL** database holds the website's telemetry, commands, research state and chart cache. No paid data feed is needed.
 
-The desktop shell and synthetic Demo can be viewed without logging in. Your real paper account, neural telemetry, research API and trading controls require owner login. The worker authenticates separately with a bridge key. OpenAI identity headers are never accepted as proof of identity on Vercel.
+The desktop shell and synthetic Demo can be viewed without logging in. Paper performance, holdings, decisions, neural telemetry, research snapshots and cached charts are publicly readable. Account identifiers are removed. Trading controls, research changes and chart fetch requests require owner login. The worker authenticates separately with a bridge key. OpenAI identity headers are never accepted as proof of identity on Vercel.
 
 ## 1. Create the free database
 
