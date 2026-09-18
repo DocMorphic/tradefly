@@ -73,7 +73,7 @@ def assess(events, orders, positions, previous, now):
             issue['expected_qty_before_rounding'] = str(expected)
             if abs(number(issue['broker_qty']) - expected) > number('0.000001'):
                 issue['status'] = 'quantity_mismatch'
-            issue['reason'] = f"{event['symbol']} {event['old_rate']}-to-{event['new_rate']} share split: broker quantity {issue['broker_qty']}; ratio implies {expected} before fractional-share treatment. Profit is unverified."
+            issue['reason'] = f"{event['symbol']}: {qty} recorded pre-split shares become {expected} before fractional-share treatment ({event['old_rate']} old shares for {event['new_rate']} new, effective {event['date']}). Alpaca currently reports {issue['broker_qty']} shares."
         issues[event['id']] = issue
     return list(issues.values())
 

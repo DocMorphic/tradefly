@@ -594,6 +594,22 @@ export function TradingDashboard({
           {data.valuation.issues.map((i) => (
             <p key={i.id}>{i.reason}</p>
           ))}
+          {!!data.valuation.issues.length && (
+            <details>
+              <summary>What needs fixing?</summary>
+              <p>
+                Alpaca’s paper positions, cost basis, and any cash adjustment
+                must be reconciled with the corporate action. If the broker
+                still shows the old shares, ask Alpaca support to correct the
+                paper account. Tradefly cannot change broker balances.
+              </p>
+              <p>
+                After the broker correction, review the activity records in
+                Tradefly before resuming. A matching share count alone does
+                not verify profit. Trading stays paused during this review.
+              </p>
+            </details>
+          )}
           <small>
             Raw broker balances are retained for audit. No corrected profit is
             invented.

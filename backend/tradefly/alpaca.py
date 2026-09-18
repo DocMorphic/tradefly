@@ -41,6 +41,22 @@ class Alpaca:
         return self.request('GET', '/v1/corporate-actions', data=True, params=params)
 
     def account(self): return self.request('GET', '/v2/account')
+    def activities(self, after):
+        """Complete read-only activity history; never accept a truncated audit."""
+        result, token, seen = [], None, set()
+        for _ in range(1000):
+            params = {'after': after, 'direction': 'asc', 'page_size': 100}
+            if token: params['page_token'] = token
+            page = self.request('GET', '/v2/account/activities', params=params)
+            if not isinstance(page, list): raise ValueError('Invalid account activity response')
+            for item in page:
+                if not isinstance(item, dict) or not item.get('id') or item['id'] in seen:
+                    raise ValueError('Incomplete or repeated account activity')
+                seen.add(item['id'])
+                result.append(item)
+            if len(page) < 100: return result
+            token = page[-1]['id']
+        raise ValueError('Incomplete account activity pagination')
     def positions(self): return self.request('GET', '/v2/positions')
     def clock(self): return self.request('GET', '/v2/clock')
     def asset(self, symbol): return self.request('GET', '/v2/assets/' + quote(symbol, safe=''))

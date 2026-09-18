@@ -641,7 +641,8 @@ export function PaperView({
               {!!s.blockers.length && (
                 <details className="paper-blockers">
                   <summary>
-                    {s.blockers.length} readiness checks need attention
+                    {s.blockers.length} readiness{' '}
+                    {s.blockers.length === 1 ? 'check needs' : 'checks need'} attention
                   </summary>
                   <ul>
                     {s.blockers.map((b) => (
