@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from '@libsql/client';
-import { SignJWT } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 import { migrate } from '../scripts/migrate-vercel.mjs';
 import { libsqlStorage } from '../lib/server/libsql-storage.ts';
 import {
   createSession,
   verifySession,
   SESSION_COOKIE,
+  SESSION_SECONDS,
+  REMEMBERED_SESSION_SECONDS,
 } from '../lib/server/owner-session.ts';
 
 void test('owner cookies require a valid signature and expiry; platform headers grant no access', async () => {
@@ -42,6 +44,40 @@ void test('owner cookies require a valid signature and expiry; platform headers 
     await verifySession(req(`${SESSION_COOKIE}=${expired}`), key),
     false,
   );
+});
+
+void test('remembered sessions last 90 days; short sessions still expire after eight hours', async () => {
+  const key = 'c'.repeat(43);
+  const secret = new TextEncoder().encode(key);
+  for (const remember of [false, true]) {
+    const token = await createSession(key, remember);
+    const { payload } = await jwtVerify(token, secret);
+    const duration = remember ? REMEMBERED_SESSION_SECONDS : SESSION_SECONDS;
+    assert.equal(payload.exp! - payload.iat!, duration);
+    const tomorrow = { currentDate: new Date((payload.iat! + 86400) * 1000) };
+    if (remember) await jwtVerify(token, secret, tomorrow);
+    else await assert.rejects(jwtVerify(token, secret, tomorrow));
+    await assert.rejects(jwtVerify(token, secret, {
+      currentDate: new Date(payload.exp! * 1000),
+    }));
+  }
+  // Exercise the request verifier with a session from a previous browser visit.
+  const now = Math.floor(Date.now() / 1000);
+  for (const age of [86400, REMEMBERED_SESSION_SECONDS + 1]) {
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('owner')
+      .setAudience('tradefly-desktop')
+      .setIssuer('tradefly')
+      .setIssuedAt(now - age)
+      .setExpirationTime(now - age + REMEMBERED_SESSION_SECONDS)
+      .sign(secret);
+    const request = new Request('https://tradefly.example/api/session', {
+      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+    });
+    assert.equal(await verifySession(request, key), age === 86400);
+    assert.equal(await verifySession(request, 'rotated-key'), false);
+  }
 });
 
 void test('Vercel SQLite migrations are repeatable and conditional updates preserve revision checks', async () => {

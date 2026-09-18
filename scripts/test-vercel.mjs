@@ -93,8 +93,17 @@ try {
   const signedIn = await post('/api/session', { key: owner });
   assert.equal(signedIn.status, 200);
   assert.match(signedIn.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
-  cookie = signedIn.headers.get('set-cookie').split(';')[0];
+  assert.match(signedIn.headers.get('set-cookie'), /Max-Age=28800(?:;|$)/);
+  const remembered = await post('/api/session', { key: owner, remember: true });
+  assert.equal(remembered.status, 200);
+  assert.match(remembered.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
+  assert.match(remembered.headers.get('set-cookie'), /Max-Age=7776000(?:;|$)/);
+  cookie = remembered.headers.get('set-cookie').split(';')[0];
   const auth = { cookie };
+  assert.equal(
+    (await (await call('/api/session', { headers: auth })).json()).authenticated,
+    true,
+  );
   assert.equal(
     (await (await call('/api/backend', { headers: auth })).json()).can_control,
     true,

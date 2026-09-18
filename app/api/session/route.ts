@@ -6,7 +6,7 @@ import {
   equalSecret,
   createSession,
   SESSION_COOKIE,
-  SESSION_SECONDS,
+  sessionSeconds,
 } from '@/lib/server/owner-session';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
@@ -36,9 +36,10 @@ export async function POST(request: Request) {
   if (typeof input?.key !== 'string' || !(await equalSecret(input.key, key)))
     return json({ error: 'That access key is incorrect.' }, 401);
   const response = json({ ok: true });
+  const remember = input.remember === true;
   response.headers.set(
     'Set-Cookie',
-    `${SESSION_COOKIE}=${await createSession(key)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_SECONDS}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`,
+    `${SESSION_COOKIE}=${await createSession(key, remember)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${sessionSeconds(remember)}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`,
   );
   return response;
 }

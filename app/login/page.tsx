@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 export default function Login() {
   const [key, setKey] = useState('');
+  const [remember, setRemember] = useState(true);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function Login() {
             const response = await fetch('/api/session', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ key }),
+              body: JSON.stringify({ key, remember }),
             });
             const data = (await response.json()) as { error?: string };
             if (!response.ok)
@@ -77,6 +78,14 @@ export default function Login() {
           value={key}
           onChange={(e) => setKey(e.target.value)}
         />
+        <label className="owner-remember">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          <span>Keep me signed in on this browser for 90 days</span>
+        </label>
         <button disabled={busy}>{busy ? 'Opening…' : 'Unlock desktop'}</button>
         <output aria-live="polite">{message}</output>
         <Link href="/">Back to desktop</Link>

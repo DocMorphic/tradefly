@@ -2852,6 +2852,8 @@ body > div:has(> [data-slot='popover-content']) {
 .owner-login p { color: #c7bfd9; font-size: 16px; line-height: 1.5; margin: 0 0 8px; }
 .owner-login label { font-size: 14px; }
 .owner-login input { width: 100%; border: 1px solid #77708d; border-radius: 5px; background: #211c32; padding: 12px; font-size: 16px; color: #fff; }
+.owner-login .owner-remember { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; cursor: pointer; color: #c7bfd9; }
+.owner-login .owner-remember input { width: 16px; height: 16px; flex: 0 0 16px; margin-top: 3px; padding: 0; accent-color: #c4b6f2; cursor: pointer; }
 .owner-login button { background: #c4b6f2; color: #211732; padding: 12px; border-radius: 5px; font-size: 16px; cursor: pointer; }
 .owner-login output { color: #f0bec9; font-size: 14px; line-height: 1.5; }
 .owner-login a { color: #d2c8ed; font-size: 14px; }

@@ -40,7 +40,7 @@ Add these **server environment variables** to the Production deployment:
 | `TRADEFLY_OWNER_KEY` | The generated owner key from `.env.local` |
 | `TRADEFLY_BRIDGE_TOKEN` | The generated/reused bridge key from `.env.local` |
 
-Deploy, open the new website, choose **Owner login**, and paste the owner key. The signed, HTTP-only session expires after eight hours. **Lock** clears it; rotating the owner key and redeploying invalidates previous sessions. Keep the owner and bridge keys different. Neither key uses a `NEXT_PUBLIC_` prefix. Alpaca API keys and Sites bypass tokens stay on the Mac.
+Deploy, open the new website, choose **Owner login**, and paste the owner key. **Keep me signed in** is checked by default and remembers this browser for 90 days, including after closing and reopening it. Uncheck it for an eight-hour session. The signed, HTTP-only cookie does not contain your owner key. Each browser and hostname (including localhost) needs its own sign-in. **Lock** or clearing cookies signs this browser out; rotating the owner key and redeploying invalidates previous sessions. Keep the owner and bridge keys different. Neither key uses a `NEXT_PUBLIC_` prefix. Alpaca API keys and Sites bypass tokens stay on the Mac.
 
 Do not give Preview deployments the Production database and bridge key. Use a separate test database/keys if you want connected previews; otherwise the public demo still works with the private backend unavailable.
 

@@ -1,6 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 export const SESSION_COOKIE = 'tradefly_owner';
 export const SESSION_SECONDS = 8 * 60 * 60;
+export const REMEMBERED_SESSION_SECONDS = 90 * 24 * 60 * 60;
+export function sessionSeconds(remember: boolean) {
+  return remember ? REMEMBERED_SESSION_SECONDS : SESSION_SECONDS;
+}
 export function ownerKey() {
   const key = process.env.TRADEFLY_OWNER_KEY;
   return key && key.length >= 32 ? key : null;
@@ -15,14 +19,14 @@ export async function equalSecret(a: string, b: string) {
   for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
   return diff === 0;
 }
-export async function createSession(key: string) {
+export async function createSession(key: string, remember = false) {
   return new SignJWT({})
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject('owner')
     .setAudience('tradefly-desktop')
     .setIssuer('tradefly')
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_SECONDS}s`)
+    .setExpirationTime(`${sessionSeconds(remember)}s`)
     .sign(new TextEncoder().encode(key));
 }
 export async function verifySession(request: Request, key: string | null) {
@@ -40,7 +44,7 @@ export async function verifySession(request: Request, key: string | null) {
         algorithms: ['HS256'],
         audience: 'tradefly-desktop',
         issuer: 'tradefly',
-        maxTokenAge: `${SESSION_SECONDS}s`,
+        maxTokenAge: `${REMEMBERED_SESSION_SECONDS}s`,
       },
     );
     return payload.sub === 'owner';
