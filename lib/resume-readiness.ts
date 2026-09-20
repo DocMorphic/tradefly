@@ -19,6 +19,26 @@ export function resumeBlocker(
   if (!s.brain?.ready)
     return 'The fly brains are still loading or validation needs attention.';
   if (s.corporate_actions?.performance_verified === false) {
+    const isolation = s.corporate_actions.isolation;
+    const checked = Date.parse(isolation?.checked_at || '');
+    if (
+      s.corporate_actions.execution_ready === true &&
+      isolation?.valid &&
+      Array.isArray(isolation.excluded_symbols) &&
+      isolation.excluded_symbols.length > 0 &&
+      Number.isFinite(checked) &&
+      now - checked >= 0 &&
+      now - checked < 30000
+    ) {
+      if (s.learning?.mode === 'learned')
+        return 'Learned orders require verified performance. Select original or training-only mode.';
+      return s.blockers?.filter(Boolean).join('; ') || null;
+    }
+    if (isolation)
+      return isolation.valid
+        ? 'Waiting for a fresh isolation audit from the worker.'
+        : isolation.reason ||
+            'Isolation audit failed; a fresh review is required.';
     const issue = s.corporate_actions.issues?.[0];
     if (
       issue?.status === 'quantity_mismatch' &&

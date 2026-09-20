@@ -4,6 +4,47 @@ import { resumeBlocker } from '../lib/resume-readiness.ts';
 import type { BackendResponse } from '../lib/backend.ts';
 
 const now = Date.parse('2026-09-20T17:00:00Z');
+test('reviewed isolation permits original/shadow resume but never learned orders or stale audits', () => {
+  const corporate_actions = {
+    performance_verified: false,
+    execution_ready: true,
+    isolation: {
+      valid: true,
+      excluded_symbols: ['NCT'],
+      checked_at: new Date(now).toISOString(),
+    },
+  };
+  assert.equal(
+    resumeBlocker(
+      state({ corporate_actions, learning: { mode: 'shadow' } }),
+      now,
+    ),
+    null,
+  );
+  assert.match(
+    resumeBlocker(
+      state({ corporate_actions, learning: { mode: 'learned' } }),
+      now,
+    )!,
+    /Learned orders/,
+  );
+  assert.match(
+    resumeBlocker(state({ corporate_actions }), now + 31000)!,
+    /fresh isolation audit/,
+  );
+  assert.equal(
+    resumeBlocker(
+      state({ corporate_actions, blockers: ['Account changed'] }),
+      now,
+    ),
+    'Account changed',
+  );
+  corporate_actions.isolation.valid = false;
+  assert.match(
+    resumeBlocker(state({ corporate_actions }), now)!,
+    /Isolation audit failed/,
+  );
+});
 function state(extra = {}): BackendResponse {
   return {
     received_at: new Date(now).toISOString(),

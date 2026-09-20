@@ -106,14 +106,15 @@ class ParallelMarketEngine(MarketEngine):
             position=next((p for p in self.positions if p['symbol']==self.symbol),{})
             from .corporate_actions import input_affected
             if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
-                self.advance('corporate_action','Input window crosses a corporate action; skipped')
+                self.advance('corporate_action','Corporate-action exclusion or affected input window; skipped')
                 continue
-            rates=encode(bar,bars[:-1],self.account,position)
+            account=self.execution_account();context=self.account_context()
+            rates=encode(bar,bars[:-1],account,position)
             self.last_bar=bar
             d={'id':digest(self.brain.manifest_hash+self.symbol+bar['t']), 'symbol':self.symbol,'fly_id':fly,
                'context_id':digest(PARALLEL_POLICY+str(self.brain.count)+fly+self.universe_id+self.brain.manifest_hash+self.settings.max_order+self.settings.max_exposure),
                'universe_id':self.universe_id,'selection_policy':PARALLEL_POLICY,'bar':bar,'feed':'iex','adjustment':'raw',
-               'stimulus_hz':rates,'account':self.account.copy(),'position':position.copy()}
+               'stimulus_hz':rates,'account':account,'account_context':context,'position':position.copy()}
             self.pending[fly]={'decision':d,'epoch':self.epoch,'future':None}
             self._inflight() # Crash marker precedes any worker mutation.
             self.advance('evaluating',fly)

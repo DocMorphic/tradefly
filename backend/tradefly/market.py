@@ -132,9 +132,10 @@ class MarketEngine(Engine):
         position = next((p for p in self.positions if p['symbol']==self.symbol), {})
         from .corporate_actions import input_affected
         if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
-            self.advance('corporate_action','Input window crosses a corporate action; skipped')
+            self.advance('corporate_action','Corporate-action exclusion or affected input window; skipped')
             return
-        rates = encode(bar, bars[:-1], self.account, position)
+        account = self.execution_account(); context = self.account_context()
+        rates = encode(bar, bars[:-1], account, position)
         self.ledger.set('brain_inflight', {'symbol':self.symbol,'bar':bar['t']})
         try:
             neural = self.brain.stimulate(rates)
@@ -144,7 +145,7 @@ class MarketEngine(Engine):
                         'universe_id':self.universe_id, 'selection_policy':POLICY,
                         'created_at':now_iso(), 'bar':bar, 'feed':'iex', 'adjustment':'raw',
                         'stimulus_hz':rates, 'neural':neural, 'action':action, 'reason':reason,
-                        'account':self.account.copy(), 'position':position.copy()}
+                        'account':account, 'account_context':context, 'position':position.copy()}
             from .learning_policy import decide
             decide(self, decision)
             action, reason = decision['action'], decision['reason']

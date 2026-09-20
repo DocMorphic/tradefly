@@ -180,6 +180,41 @@ try {
     (await blockedResume.json()).error,
     /NCT: Alpaca reports 299 shares.*11\.96/,
   );
+  const isolated = {
+    ...flagged,
+    learning: { mode: 'shadow' },
+    blockers: [],
+    corporate_actions: {
+      ...flagged.corporate_actions,
+      execution_ready: true,
+      isolation: {
+        valid: true,
+        excluded_symbols: ['NCT'],
+        checked_at: new Date().toISOString(),
+      },
+    },
+  };
+  assert.equal(
+    (await post('/api/bridge', isolated, { Authorization: 'Bearer ' + bridge }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'resume' }, auth)).status,
+    200,
+  );
+  isolated.corporate_actions.isolation.checked_at = new Date(
+    Date.now() - 31000,
+  ).toISOString();
+  assert.equal(
+    (await post('/api/bridge', isolated, { Authorization: 'Bearer ' + bridge }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await post('/api/backend', { command: 'resume' }, auth)).status,
+    409,
+  );
   assert.equal(
     (await post('/api/backend', { command: 'decoder', mode: 'learned' }, auth))
       .status,

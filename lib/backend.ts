@@ -108,6 +108,19 @@ export type BackendSnapshot = {
   corporate_actions?: {
     status: 'checked' | 'review_required' | 'unavailable';
     performance_verified: boolean;
+    execution_ready?: boolean;
+    isolation?: {
+      valid: boolean;
+      review_id: string;
+      excluded_symbols: string[];
+      checked_at: string | null;
+      reason: string;
+      cash?: string;
+      equity?: string;
+      excluded_market_value?: string;
+      unaffected_market_value?: string;
+      activity_count?: number;
+    } | null;
     checked_at: string | null;
     affected_since: string | null;
     message: string;

@@ -591,6 +591,29 @@ export function TradingDashboard({
         <div className="paper-alert" role="status">
           <strong>Performance unverified</strong>
           <p>{data.valuation.message}</p>
+          {data.valuation.isolation && (
+            <p>
+              <strong>
+                {data.valuation.isolation.excluded_symbols.join(', ')} ·
+                isolated
+              </strong>
+              {data.valuation.isolation.valid ? (
+                <>
+                  {' '}
+                  — Verified cash {money(Number(data.valuation.isolation.cash))}
+                  . Capital used for inputs and order limits{' '}
+                  {money(Number(data.valuation.isolation.equity))}.{' '}
+                  {money(
+                    Number(data.valuation.isolation.excluded_market_value),
+                  )}{' '}
+                  of reported holdings value excluded. This is a risk budget,
+                  not corrected profit.
+                </>
+              ) : (
+                <> — {data.valuation.isolation.reason}</>
+              )}
+            </p>
+          )}
           {data.valuation.issues.map((i) => (
             <p key={i.id}>{i.reason}</p>
           ))}
@@ -604,9 +627,10 @@ export function TradingDashboard({
                 paper account. Tradefly cannot change broker balances.
               </p>
               <p>
-                After the broker correction, review the activity records in
-                Tradefly before resuming. A matching share count alone does
-                not verify profit. Trading stays paused during this review.
+                A matching share count alone does not verify profit.
+                {data.valuation.isolation?.valid
+                  ? ' The reviewed exclusion allows other stocks to run while this remains unresolved. Any changed holding, unexplained cash activity, or failed audit blocks execution again.'
+                  : ' Resume requires reconciliation or a current, explicitly reviewed isolation of the affected holding.'}
               </p>
             </details>
           )}

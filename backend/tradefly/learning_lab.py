@@ -89,9 +89,12 @@ class Lab:
             records = source.execute('SELECT rowid,data FROM decisions WHERE rowid>? ORDER BY rowid', (self.get('cursor', 0),)).fetchall()
             quarantine = source.execute("SELECT value FROM settings WHERE key='position_quarantines_v1'").fetchone()
             actions = source.execute('SELECT value FROM settings WHERE key=?', (ACTIONS_KEY,)).fetchone()
+            isolation = source.execute("SELECT value FROM settings WHERE key='corporate_isolation_v1'").fetchone()
+        isolation = json.loads(isolation[0]) if isolation else {}
         action_state = json.loads(actions[0]) if actions else {}
         self.action_state = action_state
         excluded = set(json.loads(quarantine[0])) if quarantine else set()
+        excluded.update(isolation.get('symbols', {}))
         with self.db:
             for rowid, raw in records:
                 d = json.loads(raw)
@@ -100,11 +103,16 @@ class Lab:
                 if d['symbol'] in excluded: status = 'quarantined'
                 created = instant(d['created_at']).astimezone(UTC)
                 neural = d.get('neural', {})
+                context = d.get('account_context', {})
+                isolated_issues = ([i['id'] for i in isolation.get('issues', [])]
+                                   if context.get('basis') == 'isolated-v1' and context.get('valid') is True
+                                   and context.get('review_id') == isolation.get('id')
+                                   and created >= instant(isolation['at']) else [])
                 r = {'id': d['id'], 'symbol': d['symbol'], 'decision_at': created.isoformat(),
                      'fly': d.get('fly_id', 'fly-1'), 'x': x, 'original': d.get('original_action', d['action']),
                      'held': float(d.get('position', {}).get('qty') or 0) > 0,
                      'momentum': float(d.get('stimulus_hz', {}).get('return_up', 10)) - float(d.get('stimulus_hz', {}).get('return_down', 10)),
-                     'manifest_hash': neural.get('manifest_hash')}
+                     'manifest_hash': neural.get('manifest_hash'), 'isolated_issue_ids': isolated_issues}
                 self.db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?,?)',
                                 (r['id'], r['symbol'], created.astimezone(NY).date().isoformat(), status, json.dumps(r)))
                 self.set('cursor', rowid)
@@ -118,7 +126,7 @@ class Lab:
             # Any post-incident account input can contain distorted equity/cash.
             # Keep source decisions; exclude their derived training observations.
             for issue in action_state.get('issues', []):
-                self.db.execute("UPDATE observations SET status='corporate_action' WHERE status IN ('ready','pending') AND json_extract(payload,'$.decision_at')>=?", (issue['effective_at'],))
+                self.db.execute("UPDATE observations SET status='corporate_action' WHERE status IN ('ready','pending') AND json_extract(payload,'$.decision_at')>=? AND NOT EXISTS (SELECT 1 FROM json_each(observations.payload,'$.isolated_issue_ids') WHERE value=?)", (issue['effective_at'], issue['id']))
             for event in action_state.get('events', []):
                 at = effective(event).isoformat()
                 self.db.execute("UPDATE observations SET status='corporate_action' WHERE symbol=? AND status IN ('ready','pending') AND julianday(json_extract(payload,'$.decision_at')) BETWEEN julianday(?,'-40 minutes') AND julianday(?,'+7 days')", (event['symbol'],at,at))

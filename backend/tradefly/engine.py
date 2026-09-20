@@ -78,7 +78,22 @@ class Engine:
         self.connected=True
         from .corporate_actions import refresh as refresh_actions
         refresh_actions(self)
+        from .isolation import refresh as refresh_isolation
+        refresh_isolation(self)
         self.ledger.equity_sample(self.account['equity'],self.account['cash'])
+
+    def execution_account(self):
+        from .isolation import report
+        isolated = report(self)
+        if isolated is None: return self.account.copy()
+        if not isolated['valid']: raise ValueError('Isolation audit is not current')
+        return {**self.account, 'cash': isolated['cash'], 'equity': isolated['equity'],
+                'portfolio_value': isolated['equity'], 'buying_power': isolated['cash'], 'last_equity': None}
+
+    def account_context(self):
+        from .isolation import report
+        isolated = report(self)
+        return {'basis': 'isolated-v1', **isolated} if isolated and isolated['valid'] else {'basis': 'broker'}
 
     def blockers(self):
         result=[]
@@ -89,8 +104,11 @@ class Engine:
         if self.account.get('trading_blocked') or self.account.get('account_blocked') or self.account.get('status')!='ACTIVE':
             result.append('Account is not available for trading')
         from .corporate_actions import report as action_report
-        if not action_report(self)['performance_verified']:
-            result.append('Corporate-action verification requires attention; account valuation is unverified')
+        actions = action_report(self)
+        if not actions['execution_ready']:
+            result.append((actions.get('isolation') or {}).get('reason') or 'Corporate-action verification requires attention; account valuation is unverified')
+        if not actions['performance_verified'] and self.ledger.get('decoder_mode') == 'learned':
+            result.append('Learned orders require verified performance; select original or training-only mode')
         own={r['client_id'] for r in self.ledger.orders()}
         if any(o['client_order_id'] not in own for o in self.open_orders): result.append('Unrelated open orders in paper account')
         if any(p['symbol'] not in self.watchlist or number(p['qty'])<0 for p in self.positions):
@@ -144,18 +162,24 @@ class Engine:
         if self.ledger.get('decoder_mode') == 'shadow':
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':decision.get('symbol',self.symbol),'reason':'Training-only mode: no broker orders'});return None
         from .corporate_actions import report as action_report
-        if not action_report(self)['performance_verified']:
+        actions = action_report(self)
+        if not actions['execution_ready'] or (not actions['performance_verified'] and self.ledger.get('decoder_mode') == 'learned'):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':'Corporate-action valuation unverified'});return None
         symbol=decision.get('symbol',self.symbol)
+        from .isolation import excluded
+        isolated = excluded(self)
+        if symbol in isolated:
+            self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':symbol,'reason':'Corporate-action isolation: orders prohibited'});return None
         if symbol in (self.ledger.get(QUARANTINES) or {}):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'symbol':symbol,'reason':'Position quarantined after broker discrepancy'});return None
         if any(r['status'] not in TERMINAL for r in self.ledger.orders()):
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':'An order is still unresolved'});return None
         budget=number(self.settings.max_order)
+        account=self.execution_account()
         if action=='BUY':
-            portfolio_value=sum((max(number(p.get('market_value',0)),number(0)) for p in self.positions),number(0))
-            budget=min(budget,max(number(0),number(self.account['equity'])*number(self.settings.max_exposure)-portfolio_value))
-        sizing,reason=self.size_intent(action,self.account,position,asset,decision['bar']['c'],str(budget),self.settings.max_exposure)
+            portfolio_value=sum((max(number(p.get('market_value',0)),number(0)) for p in self.positions if p['symbol'] not in isolated),number(0))
+            budget=min(budget,max(number(0),number(account['equity'])*number(self.settings.max_exposure)-portfolio_value))
+        sizing,reason=self.size_intent(action,account,position,asset,decision['bar']['c'],str(budget),self.settings.max_exposure)
         if action=='BUY' and budget<1: reason='10% total portfolio exposure limit'
         if sizing is None:
             self.ledger.event('execution_blocked',{'decision_id':decision['id'],'reason':reason});return None
@@ -230,8 +254,10 @@ class Engine:
         position=next((p for p in self.positions if p['symbol']==self.symbol),{})
         from .corporate_actions import input_affected
         if input_affected(self,self.symbol,bars[-21]['t'],bar['t']):
-            self.message='Input window crosses a corporate action; skipped';return
-        rates=encode(bar,bars[:-1],self.account,position)
+            self.ledger.set('watchlist_cursor',(self.ledger.get('watchlist_cursor') or 0)+1)
+            self.message='Corporate-action exclusion or affected input window; skipped';return
+        account=self.execution_account(); context=self.account_context()
+        rates=encode(bar,bars[:-1],account,position)
         self.ledger.set('brain_inflight',bar['t'])
         try:
             neural=self.brain.stimulate(rates)
@@ -240,7 +266,7 @@ class Engine:
                       'context_id':digest(self.brain.manifest_hash+json.dumps(list(self.watchlist))+self.settings.max_order+self.settings.max_exposure),
                       'watchlist':list(self.watchlist),'selection_policy':'fixed round robin', 'created_at':now_iso(),'bar':bar,
                       'feed':'iex','adjustment':'raw','stimulus_hz':rates,'neural':neural,'action':action,
-                      'reason':reason,'account':self.account.copy(),'position':position.copy()}
+                      'reason':reason,'account':account,'account_context':context,'position':position.copy()}
             from .learning_policy import decide
             decide(self,decision)
             action,reason=decision['action'],decision['reason']

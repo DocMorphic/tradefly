@@ -121,15 +121,22 @@ def report(engine):
     issues = state.get('issues', [])
     fresh = bool(state.get('checked_at') and datetime.now(UTC) - instant(state['checked_at']) < timedelta(minutes=30))
     complete = state.get('status') == 'checked' and fresh
+    from .isolation import report as isolation_report
+    isolation = isolation_report(engine)
+    executable = bool(complete and ((not issues and isolation is None) or (isolation and isolation['valid'])))
     return {'status': 'review_required' if issues else 'checked' if complete else 'unavailable',
             'performance_verified': complete and not issues,
+            'execution_ready': executable, 'isolation': isolation,
             'checked_at': state.get('checked_at'), 'issues': issues,
             'affected_since': min((i['effective_at'] for i in issues), default=None),
             'coverage_start': state.get('coverage_start'), 'coverage_through': state.get('coverage_through'),
             'source': 'Alpaca corporate-actions feed',
-            'message': 'Broker valuation is unverified after a corporate action. Profit metrics and new orders are blocked until reconciliation.' if issues else 'Corporate-action check complete.' if complete else 'Corporate-action check unavailable. Profit metrics and new orders are withheld until verification.'}
+            'message': ('Performance remains unverified. Reviewed symbols are isolated; other symbols may run using reconciled cash and unaffected holdings.' if issues and executable else
+                        'Broker valuation is unverified after a corporate action. Profit metrics and new orders are blocked until reconciliation.') if issues else 'Corporate-action check complete.' if complete else 'Corporate-action check unavailable. Profit metrics and new orders are withheld until verification.'}
 
 
 def input_affected(engine, symbol, start, end):
+    from .isolation import excluded
+    if symbol in excluded(engine): return True
     state = engine.ledger.get(KEY) or {}
     return any(e['symbol'] == symbol and instant(start) <= effective(e) <= instant(end) for e in state.get('events', []))
