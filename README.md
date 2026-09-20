@@ -53,7 +53,7 @@ flowchart LR
 
 Each fly simulates **138,639 neurons** from the FlyWire female v783 dataset. The connectivity contains **15,091,983 neuron-pair rows representing 54,492,922 synapses**. Tradefly adapts the Shiu/Spiller Brian2 reference model; the input mapping and trading labels are our experiment design.
 
-The coordinator visits Alpaca's active, tradable US-equity universe—including ETFs—in a stable, price-independent order. Available data and simulation throughput determine which stocks get evaluated. **All stocks are eligible; not every stock has usable current input data.** Five minutes is the input-bar resolution, not a five-minute pause between stocks.
+By default, the coordinator visits Alpaca's active, tradable US-equity universe—including ETFs—in a stable, price-independent order. The optional [Jev news scout](docs/TYPESAFE.md) alternates relevant news priorities with that regular tour; the flies retain every trade decision. Available data and simulation throughput determine which stocks get evaluated. **All stocks are eligible; not every stock has usable current input data.** Five minutes is the input-bar resolution, not a five-minute pause between stocks.
 
 [Model, exact populations & adaptations →](docs/BRAIN.md) · [Two-fly scheduling →](docs/PARALLEL_FLIES.md)
 
