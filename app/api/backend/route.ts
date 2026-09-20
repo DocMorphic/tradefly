@@ -1,6 +1,7 @@
 import { publicSnapshot } from '@/lib/server/public-snapshot';
 import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, state, userAllowed } from '@/lib/server/backend-store';
+import { resumeBlocker } from '@/lib/resume-readiness';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const canControl = await userAllowed(request);
@@ -43,19 +44,16 @@ export async function POST(request: Request) {
     return json({ error: 'Unknown command' }, 400);
   const row = await state();
   const snapshot = row?.snapshot ? JSON.parse(row.snapshot) : null;
+  if (command === 'resume') {
+    const reason = resumeBlocker({
+      snapshot,
+      received_at: row?.received_at ?? undefined,
+    });
+    if (reason) return json({ error: reason }, 409);
+  }
   if (
-    command === 'resume' &&
-    (!row?.received_at ||
-      Date.now() - Date.parse(row.received_at) > 45000 ||
-      !snapshot?.brain?.ready ||
-      !snapshot?.broker?.connected)
-  )
-    return json(
-      { error: 'A connected account and validated brain are required' },
-      409,
-    );
-  if (
-    (command === 'resume' || (command === 'decoder' && mode === 'learned')) &&
+    command === 'decoder' &&
+    mode === 'learned' &&
     snapshot?.corporate_actions?.performance_verified === false
   )
     return json(

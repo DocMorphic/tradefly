@@ -96,12 +96,16 @@ try {
   assert.match(signedIn.headers.get('set-cookie'), /Max-Age=28800(?:;|$)/);
   const remembered = await post('/api/session', { key: owner, remember: true });
   assert.equal(remembered.status, 200);
-  assert.match(remembered.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
+  assert.match(
+    remembered.headers.get('set-cookie'),
+    /HttpOnly; SameSite=Strict/,
+  );
   assert.match(remembered.headers.get('set-cookie'), /Max-Age=7776000(?:;|$)/);
   cookie = remembered.headers.get('set-cookie').split(';')[0];
   const auth = { cookie };
   assert.equal(
-    (await (await call('/api/session', { headers: auth })).json()).authenticated,
+    (await (await call('/api/session', { headers: auth })).json())
+      .authenticated,
     true,
   );
   assert.equal(
@@ -153,16 +157,28 @@ try {
     ...snapshot,
     brain: { ready: true },
     broker: { connected: true },
-    corporate_actions: { performance_verified: false },
+    corporate_actions: {
+      performance_verified: false,
+      issues: [
+        {
+          symbol: 'NCT',
+          status: 'quantity_mismatch',
+          broker_qty: '299',
+          expected_qty_before_rounding: '11.96',
+        },
+      ],
+    },
   };
   assert.equal(
     (await post('/api/bridge', flagged, { Authorization: 'Bearer ' + bridge }))
       .status,
     200,
   );
-  assert.equal(
-    (await post('/api/backend', { command: 'resume' }, auth)).status,
-    409,
+  const blockedResume = await post('/api/backend', { command: 'resume' }, auth);
+  assert.equal(blockedResume.status, 409);
+  assert.match(
+    (await blockedResume.json()).error,
+    /NCT: Alpaca reports 299 shares.*11\.96/,
   );
   assert.equal(
     (await post('/api/backend', { command: 'decoder', mode: 'learned' }, auth))

@@ -13,7 +13,22 @@ uv run python -m tradefly.runner --once
 uv run python -m tradefly.runner --load-brain
 ```
 
-The worker starts **paused** on every launch. After the brain, account and corporate-action readiness checks pass, use Paper → Resume in the hosted desktop. Resume skips old bars and waits for a newly completed regular-session bar. The worker needs the Mac awake and the process running. No always-on server or automatic startup has been provisioned.
+The worker starts **paused** on every launch. After the brain, account and corporate-action readiness checks pass, use Paper → Resume in the hosted desktop. Resume skips old bars and waits for a newly completed regular-session bar. The worker needs the Mac awake and the process running.
+
+### Keep the worker available on macOS
+
+Stop any foreground worker first, then install the user LaunchAgent:
+
+```sh
+.venv/bin/python scripts/macos-worker.py install
+.venv/bin/python scripts/macos-worker.py status
+# Stop the service and remove automatic login startup:
+.venv/bin/python scripts/macos-worker.py stop
+```
+
+The service starts at login and restarts if its process exits. It runs independently of a terminal or Codex session. Each restart remains paused; an old Resume command is never replayed. Crash recovery checks still apply. Sleep, logout and shutdown interrupt availability; this is not a cloud worker. Logs stay in ignored `runs/worker.stdout.log` and `runs/worker.stderr.log`. The plist contains executable paths only, no credentials. Do not launch a second foreground worker while the service is installed.
+
+Owner login authorizes commands but does not override readiness. The desktop and command endpoint show the same Resume blocker; command errors persist across telemetry refreshes. Corporate-action mismatches require broker correction and audited reconciliation, not another login.
 
 Paper execution is hardwired to `https://paper-api.alpaca.markets`. Market data is hardwired to `https://data.alpaca.markets`, with `feed=iex`, `adjustment=raw`, `timeframe=5Min`. Redirects are rejected. Credentials use Alpaca's documented headers and are never included in logs, reports, or browser bundles. There is no live endpoint setting.
 

@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { TradingDashboard, SignalBars } from './trading-dashboard';
 import { paperTradingData } from '@/lib/trading-charts';
+import { resumeBlocker } from '@/lib/resume-readiness';
 import { Download, Pause, Play, RefreshCw } from 'lucide-react';
 import { HoldingsTable } from './holdings-table';
 import { useChartCursor } from './chart-cursor';
@@ -56,6 +57,7 @@ function exportData(snapshot: BackendSnapshot) {
 export function useBackend() {
   const [data, setData] = useState<BackendResponse>({ snapshot: null });
   const [error, setError] = useState('');
+  const [commandError, setCommandError] = useState('');
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -97,6 +99,7 @@ export function useBackend() {
   ) {
     if (!data.can_control) return;
     setBusy(true);
+    setCommandError('');
     try {
       const r = await fetch('/api/backend', {
         method: 'POST',
@@ -113,15 +116,15 @@ export function useBackend() {
         command: value,
         command_id: result.command_id,
       }));
-      setError('');
+      setCommandError('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Command failed');
+      setCommandError(e instanceof Error ? e.message : 'Command failed');
     } finally {
       setBusy(false);
     }
   }
   const stale = !data.received_at || now - Date.parse(data.received_at) > 45000;
-  return { data, error, busy, stale, command };
+  return { data, error: commandError || error, busy, stale, command };
 }
 export type PaperBackend = ReturnType<typeof useBackend>;
 function Stat({
@@ -514,6 +517,7 @@ export function PaperView({
 }) {
   const { data, error, stale, busy, command } = backend,
     s = data.snapshot;
+  const resumeReason = resumeBlocker(data);
   const charts = useMemo(() => (s ? paperTradingData(s) : null), [s]);
   const [selected, setSelected] = useState<string | null>(null);
   const decision =
@@ -569,8 +573,10 @@ export function PaperView({
               stale ||
               !s?.brain.ready ||
               !s?.broker.connected ||
-              !s?.paused
+              !s?.paused ||
+              !!resumeReason
             }
+            title={resumeReason || 'Resume the current decoder mode'}
             onClick={() => command('resume')}
           >
             <Play size={15} />
@@ -578,6 +584,11 @@ export function PaperView({
           </button>
         </div>
       </div>
+      {data.can_control && (s?.paused || stale) && resumeReason && (
+        <p className="paper-alert" role="status">
+          <strong>Resume unavailable.</strong> {resumeReason}
+        </p>
+      )}
       {error && (
         <p className="paper-alert" role="alert">
           {error}
@@ -642,7 +653,8 @@ export function PaperView({
                 <details className="paper-blockers">
                   <summary>
                     {s.blockers.length} readiness{' '}
-                    {s.blockers.length === 1 ? 'check needs' : 'checks need'} attention
+                    {s.blockers.length === 1 ? 'check needs' : 'checks need'}{' '}
+                    attention
                   </summary>
                   <ul>
                     {s.blockers.map((b) => (
