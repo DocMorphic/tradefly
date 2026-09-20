@@ -91,3 +91,36 @@ def test_control_check_session_change_invalidates_ready_intent(setup):
     e.tick(c.current)
     assert not b.submissions
     assert any(x['data'].get('reason')=='Session or input boundary changed during control check' for x in e.ledger.events())
+
+class Priority:
+    def __init__(self,symbols):self.symbols=list(symbols)
+    def take(self,eligible,probed):
+        while self.symbols:
+            symbol=self.symbols.pop(0)
+            if symbol in eligible and symbol not in probed:return {'symbol':symbol,'relevance':.95,'news_id':'test'}
+        return None
+
+def test_news_priority_preserves_regular_cursor_neural_input_and_complete_tour(setup):
+    e,b,p,c=setup
+    tour=list(e.watchlist)
+    e.scout=Priority([tour[2],tour[1]])
+    e.tick(c.current)
+    first=[x['decision'] for x in e.pending.values()]
+    assert [d['symbol'] for d in first]==[tour[2],tour[0]]
+    assert [d['selection']['source'] for d in first]==['jev_news','market_tour']
+    assert e.ledger.get('market_cursor')==1
+    # News never changes neural stimulus fields or passes a judgment into the brain.
+    assert p.jobs[0][1]==p.jobs[1][1]
+    p.finish(0);p.finish(1);e.tick(c.current)
+    assert p.jobs[2] and list(e.pending.values())[0]['decision']['symbol']==tour[1]
+    p.finish(2);e.tick(c.current)
+    assert e.ledger.decision_count()==3 and not b.submissions
+    assert {d['symbol'] for d in e.ledger.decisions()}==set(tour)
+    assert all(d['action']=='HOLD' for d in e.ledger.decisions())
+
+def test_priority_data_gap_does_not_block_normal_tour(setup):
+    e,b,p,c=setup
+    priority=e.watchlist[-1];b.gaps.add(priority);e.scout=Priority([priority])
+    e.tick(c.current)
+    assert len(p.jobs)==2
+    assert all(v['decision']['symbol']!=priority for v in e.pending.values())

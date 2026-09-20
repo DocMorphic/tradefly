@@ -10,7 +10,20 @@ export type NeuralActivity = {
   events: [number, number][];
   recorder_hash: string;
 };
+export type NewsPriority = {
+  symbol: string;
+  relevance: number;
+  headline: string;
+  news_id: string;
+  news_at: string;
+  model: string;
+  scored_at: string;
+  expires_at: string;
+};
 export type PaperDecision = {
+  selection?:
+    | { source: 'market_tour' }
+    | ({ source: 'jev_news' } & NewsPriority);
   fly_id?: string;
   symbol?: string;
   id: string;
@@ -56,6 +69,19 @@ export type PaperOrder = {
   broker: Record<string, string | null> | null;
 };
 export type BackendSnapshot = {
+  news_scout?: {
+    status: string;
+    message: string;
+    model: string;
+    calls: number;
+    input_tokens: number;
+    reserved_tokens: number;
+    max_calls: number;
+    max_input_tokens: number;
+    latency_ms: number | null;
+    updated_at: string | null;
+    queue: NewsPriority[];
+  };
   flies?: {
     count: number;
     mode: 'independent';

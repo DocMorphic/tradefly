@@ -88,6 +88,11 @@ def main():
     chart_stop=start_background() if not args.once else None
     from .learning_lab import start_background as start_learning
     learning_stop=start_learning() if not args.once else None
+    if not args.once:
+        from .jev import Scout
+        try: engine.scout=Scout(settings)
+        except Exception:
+            engine.ledger.event('news_scout_unavailable', {'reason':'Optional scout could not initialize; regular tour retained'})
     engine.before_submit=bridge.before_submit
     running=True
     def stop(*_):
@@ -106,6 +111,8 @@ def main():
             engine.pause(reason)
         except Exception:
             engine.connected=False;engine.pause('Backend error; execution paused')
+        if engine.scout:
+            engine.scout.pulse(engine.assets, active=not engine.paused and bool(engine.market.get('is_open')))
         snapshot=bounded_activity_snapshot(engine.snapshot())
         temporary=settings.database.parent/'status.tmp'
         temporary.write_text(json.dumps(snapshot))
@@ -127,6 +134,7 @@ def main():
     if args.flies==2 and engine.brain:
         engine.brain.close()
         engine.collect()
+    if engine.scout: engine.scout.close()
     if chart_stop: chart_stop.set()
     if learning_stop: learning_stop.set()
     bridge.client.close();engine.broker.close();engine.ledger.close()

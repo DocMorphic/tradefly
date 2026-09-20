@@ -146,7 +146,8 @@ def test_account_mutation_invalidates_audit_before_next_refresh(isolated):
     assert not b.submissions
 
 
-def test_parallel_dispatch_skips_isolated_stock_and_records_conservative_inputs(isolated):
+@pytest.mark.parametrize('news_priority', [False, True])
+def test_parallel_dispatch_skips_isolated_stock_and_records_conservative_inputs(isolated, news_priority):
     from tradefly.parallel_market import ParallelMarketEngine
     from tradefly.domain import encode
     from test_parallel_market import Pool
@@ -156,6 +157,10 @@ def test_parallel_dispatch_skips_isolated_stock_and_records_conservative_inputs(
     p.account, p.positions, p.open_orders, p.connected = e.account, e.positions, [], True
     p.isolation_check = e.isolation_check
     p.watchlist = ('NCT', 'AAPL'); p.universe_id = 'test'
+    p.assets = {symbol: ASSET for symbol in p.watchlist}
+    if news_priority:
+        from test_parallel_market import Priority
+        p.scout = Priority(['NCT'])
     now = datetime(2026, 9, 21, 15, 15, 15, tzinfo=UTC)
     p.started = now-timedelta(minutes=10)
     bars = [{'t': (now.replace(second=0)-timedelta(minutes=5*(21-i))).isoformat(), 'o':50, 'h':51, 'l':49, 'c':50, 'v':100} for i in range(21)]

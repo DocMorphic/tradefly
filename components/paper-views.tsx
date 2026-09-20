@@ -193,6 +193,18 @@ export function Decision({ d }: { d: PaperDecision }) {
           {d.reason}. BUY and SELL are the experiment’s assigned output labels.
         </p>
       </section>
+      {d.selection?.source === 'jev_news' && (
+        <section className="trade-card">
+          <h3>Why this stock came forward</h3>
+          <p>{d.selection.headline}</p>
+          <p className="trade-one-line">
+            Jev news match · {Math.round(d.selection.relevance * 100)}%
+            relevance probability · {time(d.selection.news_at)}. This is not a
+            profit forecast. The fly’s neural decoder still produced the
+            decision above.
+          </p>
+        </section>
+      )}
       <details className="trade-records">
         <summary>Market inputs, timings & complete neural measurements</summary>
         <div>
@@ -664,6 +676,76 @@ export function PaperView({
                 </details>
               )}
               <TradingDashboard data={charts} onTrace={onTrace} />
+              {s.news_scout && (
+                <details className="trade-records">
+                  <summary>
+                    Jev news scout · {s.news_scout.status.replaceAll('_', ' ')}
+                  </summary>
+                  <div>
+                    <p>{s.news_scout.message}</p>
+                    <div className="paper-stats">
+                      <Stat
+                        label="Trial requests"
+                        value={`${s.news_scout.calls} / ${s.news_scout.max_calls}`}
+                        note="Lifetime limit, including failed attempts"
+                      />
+                      <Stat
+                        label="Reported input tokens"
+                        value={count(s.news_scout.input_tokens)}
+                        note={`${count(s.news_scout.reserved_tokens)} used or reserved / ${count(s.news_scout.max_input_tokens)}`}
+                      />
+                      <Stat
+                        label="Last successful API latency"
+                        value={
+                          s.news_scout.latency_ms === null
+                            ? '—'
+                            : `${s.news_scout.latency_ms} ms`
+                        }
+                        note="Background request; separate from fly simulation time"
+                      />
+                    </div>
+                    <p className="trade-one-line">
+                      One news priority alternates with one regular tour
+                      candidate. Jev selects attention; the fly decoder
+                      determines trades.
+                    </p>
+                    {s.news_scout.queue.length > 0 ? (
+                      s.news_scout.queue.map((item) => (
+                        <div
+                          key={`${item.news_id}-${item.symbol}`}
+                          className="trade-card"
+                        >
+                          <strong>
+                            {item.symbol} · {Math.round(item.relevance * 100)}%
+                            news relevance
+                          </strong>
+                          <meter
+                            min={0}
+                            max={1}
+                            value={item.relevance}
+                            aria-label={`${item.symbol} news relevance probability`}
+                            style={{ width: '100%', accentColor: '#6155a5' }}
+                          />
+                          <p>{item.headline}</p>
+                          <small>
+                            {time(item.news_at)} · Priority expires{' '}
+                            {time(item.expires_at)}
+                          </small>
+                        </div>
+                      ))
+                    ) : (
+                      <p>
+                        No fresh priority queued. The regular tour remains
+                        available.
+                      </p>
+                    )}
+                    <p className="trade-one-line">
+                      Relevance is not a profit probability. Local trial limits
+                      do not show your TypeSafe credit balance.
+                    </p>
+                  </div>
+                </details>
+              )}
               <details className="trade-records">
                 <summary>
                   Holdings · exact values, sorting & date filters
@@ -689,7 +771,7 @@ export function PaperView({
                 <div>
                   <p>{s.message}</p>
                   <p>
-                    {s.flies?.count ?? 1} flies · next stock{' '}
+                    {s.flies?.count ?? 1} flies · next tour stock{' '}
                     {s.next_symbol ?? s.symbol} ·{' '}
                     {s.universe?.total ?? s.watchlist?.length ?? 0} available
                     symbols · order cap {usd(s.limits.max_order_usd)}

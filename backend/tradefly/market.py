@@ -29,6 +29,9 @@ def size_market_order(action, account, position, asset, price, cap, exposure):
 class MarketEngine(Engine):
     def __init__(self, settings, **kwargs):
         super().__init__(settings, **kwargs)
+        self.scout = None
+        self.selection = {'source': 'market_tour'}
+        self.priority_turn = True
         self.assets = {}
         self.watchlist = ()
         self.symbol = ''
@@ -83,7 +86,39 @@ class MarketEngine(Engine):
 
     def advance(self, status, detail=''):
         self.ledger.observe(self.symbol, status, detail)
-        self.ledger.set('market_cursor', (self.ledger.get('market_cursor') or 0)+1)
+        if self.selection['source'] == 'market_tour':
+            self.ledger.set('market_cursor', (self.ledger.get('market_cursor') or 0)+1)
+
+    def next_candidate(self):
+        self.selection = {'source': 'market_tour'}
+        if self.scout and self.priority_turn:
+            row = self.scout.take(self.assets, self.probed)
+            if row:
+                self.symbol = row['symbol']
+                self.selection = {'source': 'jev_news', **row}
+                self.priority_turn = False
+                return True
+        # A stock visited early via Jev must not stop the ordinary tour.
+        for _ in range(len(self.watchlist)):
+            cursor = self.ledger.get('market_cursor') or 0
+            self.symbol = self.watchlist[cursor % len(self.watchlist)]
+            if self.symbol not in self.probed:
+                self.priority_turn = True
+                return True
+            if len(self.probed) >= len(self.watchlist): return False
+            self.ledger.set('market_cursor', cursor+1)
+        return False
+
+    def candidate_batch(self):
+        cursor = self.ledger.get('market_cursor') or 0
+        symbols = [self.symbol] + [self.watchlist[(cursor+i) % len(self.watchlist)] for i in range(min(16, len(self.watchlist)))]
+        return list(dict.fromkeys(symbols))[:16]
+
+    def decision_policy(self, default):
+        if self.selection['source'] == 'jev_news':
+            from .jev import POLICY as JEV_POLICY
+            return JEV_POLICY
+        return default
 
     def tick(self, now=None):
         now = now or datetime.now(UTC)
@@ -109,14 +144,12 @@ class MarketEngine(Engine):
         opened = datetime.fromisoformat(session['date']+'T'+session['open']).replace(tzinfo=NY)
         if boundary < opened+timedelta(minutes=5) or boundary <= self.started:
             self.message = 'Waiting for the next completed market bar'; return
-        cursor = self.ledger.get('market_cursor') or 0
-        self.symbol = self.watchlist[cursor % len(self.watchlist)]
         if self.cache_boundary != boundary:
             self.cache = {}; self.cache_boundary = boundary; self.probed = set()
-        if self.symbol in self.probed:
+        if not self.next_candidate():
             self.message = 'Tour complete for this input boundary; waiting for fresh bars'; return
         if self.symbol not in self.cache:
-            batch = [self.watchlist[(cursor+i)%len(self.watchlist)] for i in range(min(16,len(self.watchlist)))]
+            batch = self.candidate_batch()
             self.cache = {s:[] for s in batch}
             self.cache.update(self.broker.bars_many(batch, start.isoformat(), end.isoformat()))
         self.probed.add(self.symbol)
@@ -141,8 +174,8 @@ class MarketEngine(Engine):
             neural = self.brain.stimulate(rates)
             action, reason = decode(neural['buy_hz'], neural['sell_hz'])
             decision = {'id':digest(self.brain.manifest_hash+self.symbol+bar['t']), 'symbol':self.symbol,
-                        'context_id':digest(POLICY+self.universe_id+self.brain.manifest_hash+self.settings.max_order+self.settings.max_exposure),
-                        'universe_id':self.universe_id, 'selection_policy':POLICY,
+                        'context_id':digest(self.decision_policy(POLICY)+self.universe_id+self.brain.manifest_hash+self.settings.max_order+self.settings.max_exposure),
+                        'universe_id':self.universe_id, 'selection_policy':self.decision_policy(POLICY), 'selection':self.selection.copy(),
                         'created_at':now_iso(), 'bar':bar, 'feed':'iex', 'adjustment':'raw',
                         'stimulus_hz':rates, 'neural':neural, 'action':action, 'reason':reason,
                         'account':account, 'account_context':context, 'position':position.copy()}
@@ -178,6 +211,9 @@ class MarketEngine(Engine):
         statuses = {r['symbol']:r['status'] for r in records if r['symbol'] in self.assets}
         counts = Counter(statuses.values())
         s['selection_policy'] = POLICY
+        if self.scout:
+            s['news_scout'] = self.scout.snapshot()
+            s['selection_policy'] += '; optional Jev news priorities when enabled'
         s['next_symbol'] = self.watchlist[(self.ledger.get('market_cursor') or 0)%len(self.watchlist)] if self.watchlist else None
         # Universe membership and latest coverage travel separately from the bounded log.
         s['universe'] = {'mode':'all_alpaca_us_equities', 'id':self.universe_id, 'updated_at':self.universe_at,

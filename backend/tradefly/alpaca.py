@@ -18,7 +18,7 @@ class Alpaca:
         self.client.close()
 
     def request(self, method, path, *, data=False, params=None, payload=None):
-        allowed_action = method == 'GET' and data and path == '/v1/corporate-actions'
+        allowed_action = method == 'GET' and data and path in ('/v1/corporate-actions', '/v1beta1/news')
         if (not path.startswith('/v2/') and not allowed_action) or '://' in path or '..' in path:
             raise ValueError('Invalid broker path')
         try:
@@ -39,6 +39,13 @@ class Alpaca:
         params = {'start': start, 'end': end, 'types': ','.join(TYPES), 'limit': 1000}
         if token: params['page_token'] = token
         return self.request('GET', '/v1/corporate-actions', data=True, params=params)
+
+    def news(self, start):
+        result = self.request('GET', '/v1beta1/news', data=True,
+                              params={'start': start, 'sort': 'desc', 'limit': 50, 'include_content': 'false'})
+        if not isinstance(result, dict) or not isinstance(result.get('news'), list):
+            raise BrokerError(None, 'invalid news response')
+        return result['news']
 
     def account(self): return self.request('GET', '/v2/account')
     def activities(self, after):

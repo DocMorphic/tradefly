@@ -1,63 +1,75 @@
-# TypeSafe / Jev integration assessment
+# Jev scouts the news. The flies decide.
 
 [← Documentation](README.md)
 
-Status on September 20, 2026: the TypeSafe skill is installed for Codex in this repository. No Jev API calls or trading-path integration are enabled. The owner is choosing between optional stock prioritization and an analysis-only companion. The free-only requirement remains in effect.
+Tradefly can use TypeSafe’s Jev to bring stocks with relevant public news forward in the queue. It runs beside the two fly simulations; it does not replace either brain or alter the neural decoder.
 
-## What Jev can accelerate
+```mermaid
+flowchart LR
+  News["Alpaca public news"] --> Jev["Jev: direct news relevance"]
+  Jev --> Queue["1 priority candidate"]
+  Tour["Full-market tour"] --> Regular["1 regular candidate"]
+  Queue --> Checks["Eligibility, fresh bars, corporate actions"]
+  Regular --> Checks
+  Checks --> Fly["Fly simulation + existing decoder"]
+  Fly --> Guard["Existing paper-account checks"]
+  Guard --> Order["Paper order or no order"]
+```
 
-Jev evaluates text or structured state and returns typed judgments and probabilities. It is a separate remote model, not a Brian2 simulation runtime. Adding its API cannot directly accelerate the connectome's differential equations, spike propagation or checkpoint writes. Replacing a neural evaluation with Jev's BUY/SELL/HOLD prediction would change which model makes the decision.
+## Enable the local trial
 
-The latest 300 recorded decisions inspected on September 20 had a median simulation time of approximately 2.54 seconds and a median calculation-plus-checkpoint time of 3.75 seconds. These are historical measurements, not a fresh benchmark or the full time from market input to an order. Read current timings without changing the running experiment:
+The API key belongs on the machine running the Python worker, **not in Vercel or browser settings**. The local `.env.typesafe` file is ignored by Git. Create it if necessary:
+
+```dotenv
+TYPESAFE_API_KEY=your_key_here
+TYPESAFE_ENABLED=1
+TYPESAFE_MAX_CALLS=100
+TYPESAFE_MAX_INPUT_TOKENS=1000000
+```
+
+Use `chmod 600 .env.typesafe`. The installed worker reloads this file each loop. Set `TYPESAFE_ENABLED=0` to turn the scout off; the normal tour continues. An already-sent request may finish. No worker restart is needed for a key/config change after installing this version.
+
+Use your free credits and disable paid overages in the provider account if that control is available. The API is metered: these local limits **do not know your credit balance or guarantee zero provider charges**. Tradefly makes no subscription or purchase. The owner’s local setup starts disabled until they add their key and enable it.
+
+The trial has hard ceilings of 100 requests and 1,000,000 budgeted input tokens; values may be lowered in the file. Usage persists across restarts in `runs/typesafe.sqlite3`. Before every request, Tradefly reserves a conservative input allowance based on request bytes and question count. Confirmed usage replaces that reservation; ambiguous failures retain it. There are no automatic retries of the same failed news batch. HTTP 401/402/403/429 stop further requests until configuration changes or the worker restarts; lifetime limits still apply. Do not delete the audit database to reset usage.
+
+## What it actually does
+
+1. While the flies are running and the market is open, a separate background thread checks up to 50 of Alpaca’s latest news articles every five minutes. The endpoint was accessible using the owner’s existing account on September 20, 2026. This is bounded recent coverage, not every headline on every stock.
+2. Code keeps articles updated within the previous hour and tickers in the active, tradable US-equity universe. Each request contains at most eight article/ticker questions and 16 KB of JSON. Only the headline, short summary, ticker and public article identifiers/dates go to TypeSafe.
+3. Pinned model `jev-1.13.0` answers one **Noul** question per article/ticker pair: does this report a substantive new event directly about the company? All independent questions share a single request. Jev is never asked for BUY, SELL, HOLD, price direction or expected returns.
+4. Answers at or above 0.75 may enter the queue, sorted by relevance probability. This is an initial engineering threshold, **not a validated trading signal or profit probability**. Cached judgments expire after 15 minutes. Identical batches are not billed again; each article/ticker is consumed once per worker session.
+5. A priority candidate alternates with a regular tour candidate. Priority picks do not advance the ordinary cursor. Already-visited stocks cannot stall the tour. Missing current IEX bars, corporate-action exclusions (including NCT) and all other existing checks still apply before neural evaluation.
+6. The existing decoder receives the measured fly output. Jev scores never enter neural stimulus, learning features, sizing or order execution. Shadow mode remains training-only; adding Jev does not switch execution modes.
+
+If the key, news, usable judgment or allowance is missing, the fly continues its ordinary tour. No fly waits for a Jev network request. Prioritization affects what the fly encounters and therefore can affect its subsequent state; it is disclosed as software-guided attention, not independent fly stock selection.
+
+## See and audit the result
+
+Open **Paper → Jev news scout** for status, remaining request allowance, reported/reserved input tokens, last successful API latency and the current priority queue. In the decision inspector, **Why this stock came forward** shows the source headline and relevance judgment for a priority pick. The complete record includes model, article ID, evidence date, scoring/expiry dates and selection policy.
+
+The local SQLite audit stores the exact bounded public request, validated answers and usage, with a reservation saved before the API call. It never stores the TypeSafe authorization header. Public telemetry contains selected headlines and judgments but no TypeSafe or broker credentials, account identity, or full article content.
+
+## What gets faster—and what does not
+
+This can reduce the wait before a news-related stock is examined. It does not accelerate Brian2 or fix missing IEX bars. It does not establish profitability.
+
+The latest 300 historical decisions inspected on September 20 had a median simulation time of **2.54 seconds** and calculation-plus-checkpoint time of **3.75 seconds**. These are not full market-to-order timings or a Jev benchmark. Inspect current local history without placing orders:
 
 ```sh
 .venv/bin/python scripts/profile-decision-latency.py --limit 300
 ```
 
-Actual simulation throughput improvements need separate profiling of Brian2 execution, passive activity recording, checkpoint I/O, scheduling and data fetching, followed by identical-state/restart validation. Do not shorten the neural time window or skip required checkpoints and call that an equivalent speed improvement.
+After a live trial, compare news-to-evaluation delay, ordinary-tour coverage, API latency/usage and paper results by selection source. Keep corporate-action-contaminated performance excluded. No speed or profitability improvement has yet been demonstrated with this integration.
 
-## Candidate integration: prioritize attention
+## Development
 
-With explicit owner selection, Jev could assess the relevance and urgency of supplied public news, then suggest which eligible symbols to examine sooner. Numerical filters, eligibility, freshness, accounting and order sizing remain ordinary code. This could reduce the wait to inspect a relevant event; it does not make each fly evaluation faster or establish profitability.
-
-Proposed flow:
-
-```mermaid
-flowchart LR
-  News["Dated public news"] --> Jev["Jev: relevance judgments"]
-  Jev --> Queue["Optional queue priorities"]
-  Tour["Full-market tour"] --> Queue
-  Queue --> Fly["Measured fly simulation"]
-  Fly --> Gate["Existing decoder and paper-account checks"]
-  Gate --> Order["Paper order or no order"]
-```
-
-Implementation requirements, not currently implemented:
-
-- Verify a free, permitted news source and coverage before building a live fetcher. Jev receives supplied evidence; it is not itself a news feed or market-data source.
-- First run judgments in observation-only mode. Compare latency, relevance, stock coverage and selection against the existing tour before changing the queue.
-- Batch independent questions; cache by evidence, question and pinned model version. Record the exact inputs, answers, token usage and timings.
-- Preserve guaranteed tour slots so prioritization cannot permanently exclude quiet stocks. Isolated symbols such as NCT remain excluded by code.
-- Never block a fly waiting for Jev. Missing credentials, stale evidence, timeout, malformed results or exhausted allowance fall back to the ordinary tour.
-- Distinguish Jev's selection influence from the fly's measured trade decision in the UI. Jev probabilities are not profit probabilities or a transcript of the fly's thoughts.
-- Do not send account balances, holdings, fills, owner secrets or broker credentials. Use only the approved public evidence needed for the question.
-
-An analysis-only alternative would classify public events for display without changing symbol order, neural input, decoder or execution. It would add context rather than speed up trading.
-
-## API and cost boundary
-
-The current HTTP contract is `POST https://api.typesafe.ai/v1/systemone` with bearer authentication, `state`, `model` and a map of typed `questions`; responses include `answers`, actual `model` and token `usage`. The documented current pinned model is `jev-1.13.0`. Recheck live docs before implementation.
-
-The model page currently lists $0.042 per million input tokens and free output tokens. That is metered service, not evidence this account has a free allowance. No local TypeSafe key or verified free-credit budget was available during this assessment. Keep calls disabled until the owner supplies the key locally and confirms how free credits and paid overages are controlled. A token counter alone cannot prove the provider will not bill the account.
-
-## Skill installation
-
-Installed using one method:
+The project-local TypeSafe skill is installed at `.agents/skills/typesafe-ai/SKILL.md`. Read it and the live docs for future changes. Installation used one method:
 
 ```sh
 npx --yes skills add typesafe-ai/skills --skill typesafe-ai --agent codex --yes
 ```
 
-The project-local skill is in `.agents/skills/typesafe-ai/SKILL.md`; `skills-lock.json` records its source and content hash. Future Codex work on TypeSafe should read the skill and the relevant live docs. Installing the skill does not install a model or activate API calls.
+Main code: `backend/tradefly/jev.py`, `market.py`, `parallel_market.py`. Tests use mocked TypeSafe responses and verify public-data boundaries, queue fairness, unchanged neural inputs, expiry, caching, failure handling and durable trial limits. They do not use credits or place broker orders.
 
-Sources: [TypeSafe introduction](https://docs.typesafe.ai/introduction), [API](https://docs.typesafe.ai/api), [models and pricing](https://docs.typesafe.ai/models), [building guide](https://docs.typesafe.ai/concepts/how-to-build-with-system-one), [reranking cookbook](https://docs.typesafe.ai/cookbooks/rerank_typesafe).
+Sources: [TypeSafe API](https://docs.typesafe.ai/api), [Noul](https://docs.typesafe.ai/primitives/noul), [models and pricing](https://docs.typesafe.ai/models), [reranking cookbook](https://docs.typesafe.ai/cookbooks/rerank_typesafe), [Alpaca news endpoint](https://docs.alpaca.markets/us/reference/news-3).

@@ -91,11 +91,9 @@ class ParallelMarketEngine(MarketEngine):
         if self.cache_boundary!=boundary:self.cache={};self.cache_boundary=boundary;self.probed=set()
         # Skip missing-data symbols in a bounded burst instead of sleeping per gap.
         for _ in range(min(16,len(self.watchlist))):
-            cursor=self.ledger.get('market_cursor') or 0
-            self.symbol=self.watchlist[cursor%len(self.watchlist)]
-            if self.symbol in self.probed:return
+            if not self.next_candidate():return
             if self.symbol not in self.cache:
-                batch=[self.watchlist[(cursor+i)%len(self.watchlist)] for i in range(min(16,len(self.watchlist)))]
+                batch=self.candidate_batch()
                 self.cache={s:[] for s in batch};self.cache.update(self.broker.bars_many(batch,start.isoformat(),end.isoformat()))
             self.probed.add(self.symbol)
             bars=completed_bars(self.cache[self.symbol],calendar,end)
@@ -112,8 +110,8 @@ class ParallelMarketEngine(MarketEngine):
             rates=encode(bar,bars[:-1],account,position)
             self.last_bar=bar
             d={'id':digest(self.brain.manifest_hash+self.symbol+bar['t']), 'symbol':self.symbol,'fly_id':fly,
-               'context_id':digest(PARALLEL_POLICY+str(self.brain.count)+fly+self.universe_id+self.brain.manifest_hash+self.settings.max_order+self.settings.max_exposure),
-               'universe_id':self.universe_id,'selection_policy':PARALLEL_POLICY,'bar':bar,'feed':'iex','adjustment':'raw',
+               'context_id':digest(self.decision_policy(PARALLEL_POLICY)+str(self.brain.count)+fly+self.universe_id+self.brain.manifest_hash+self.settings.max_order+self.settings.max_exposure),
+               'universe_id':self.universe_id,'selection_policy':self.decision_policy(PARALLEL_POLICY),'selection':self.selection.copy(),'bar':bar,'feed':'iex','adjustment':'raw',
                'stimulus_hz':rates,'account':account,'account_context':context,'position':position.copy()}
             self.pending[fly]={'decision':d,'epoch':self.epoch,'future':None}
             self._inflight() # Crash marker precedes any worker mutation.
@@ -141,7 +139,7 @@ class ParallelMarketEngine(MarketEngine):
             if fly not in self.pending:self._dispatch(fly,now)
 
     def snapshot(self):
-        s=super().snapshot();s['selection_policy']=PARALLEL_POLICY
+        s=super().snapshot();s['selection_policy']=PARALLEL_POLICY+('; optional Jev news priorities when enabled' if self.scout else '')
         seconds=self.active_seconds+(time.monotonic()-self.active_since if self.active_since is not None else 0)
         s['flies']={'count':self.brain.count if self.brain else 0,'mode':'independent','inflight':[{'fly_id':fly,'symbol':p['decision']['symbol']} for fly,p in self.pending.items()],
                     'completed':self.completed_by_fly,'evaluations_per_minute':round(self.session_evaluated/seconds*60,2) if seconds else 0,
