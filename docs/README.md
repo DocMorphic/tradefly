@@ -49,6 +49,7 @@ flowchart LR
 ## Design history and next steps
 
 - [Roadmap](ROADMAP.md) — implemented capabilities and open research.
+- [TypeSafe / Jev assessment](TYPESAFE.md) — installed agent skill, measured decision timings, and optional integration boundaries; API calls are not enabled.
 - [Original technical plan](PLAN.md) — the September 14 design proposal. It intentionally preserves the original fixed-weight, single-brain scope; it is not the current operations manual.
 - [September 14 pre-resume check](PRE_RESUME_CHECK.md) — a historical validation record, not the current broker state.
 
