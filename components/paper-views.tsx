@@ -1,4 +1,9 @@
 'use client';
+import {
+  assembleSnapshot,
+  type Chunks,
+  type Versions,
+} from '@/lib/backend-transport';
 import { useEffect, useState, useMemo } from 'react';
 import { TradingDashboard, SignalBars } from './trading-dashboard';
 import { paperTradingData } from '@/lib/trading-charts';
@@ -63,9 +68,16 @@ export function useBackend() {
   useEffect(() => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    let versions: Versions = {};
+    let chunks: Chunks = {};
+    let inFlight = false;
     async function refresh() {
+      if (document.hidden || inFlight || controller.signal.aborted) return;
+      clearTimeout(timer);
+      inFlight = true;
       try {
-        const r = await fetch('/api/backend', {
+        const r = await fetch('/api/backend?compact=1', {
+          headers: { 'X-Tradefly-Versions': JSON.stringify(versions) },
           cache: 'no-store',
           signal: controller.signal,
         });
@@ -75,20 +87,51 @@ export function useBackend() {
               ? 'Sign in to view your paper backend'
               : 'Backend connection is being configured',
           );
-        setData(await r.json());
+        const incoming = (await r.json()) as Omit<
+          BackendResponse,
+          'snapshot'
+        > & {
+          transport: string;
+          has_snapshot: boolean;
+          changes: Chunks;
+          removed: string[];
+          versions: Versions;
+        };
+        if (incoming.transport !== 'chunks-v1')
+          throw new Error('Dashboard update format unavailable');
+        const nextChunks = { ...chunks, ...incoming.changes };
+        for (const key of incoming.removed) delete nextChunks[key];
+        chunks = nextChunks;
+        versions = incoming.versions;
+        setData({
+          snapshot: incoming.has_snapshot
+            ? (assembleSnapshot(chunks) as BackendSnapshot)
+            : null,
+          can_control: incoming.can_control,
+          received_at: incoming.received_at,
+          command: incoming.command,
+          command_id: incoming.command_id,
+        });
         setError('');
       } catch (e) {
         if (!controller.signal.aborted)
           setError(e instanceof Error ? e.message : 'Connection unavailable');
       } finally {
+        inFlight = false;
         if (!controller.signal.aborted) {
           setNow(Date.now());
-          timer = setTimeout(refresh, 5000);
+          if (!document.hidden) timer = setTimeout(refresh, 10000);
         }
       }
     }
+    const onVisibility = () => {
+      clearTimeout(timer);
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     void refresh();
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
       controller.abort();
       clearTimeout(timer);
     };

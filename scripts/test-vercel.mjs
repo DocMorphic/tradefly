@@ -7,6 +7,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { gzipSync } from 'node:zlib';
 
 const folder = await mkdtemp(path.join(tmpdir(), 'tradefly-vercel-'));
 const url = 'file:' + path.join(folder, 'test.db');
@@ -152,6 +153,61 @@ try {
     (await (await call('/api/backend', { headers: auth })).json()).snapshot,
     snapshot,
   );
+  // The worker can send lossless compressed changes; stale bases cannot corrupt state.
+  const beforeCompact = await (await call('/api/backend?compact=1')).json();
+  assert.equal(beforeCompact.can_control, false);
+  assert.equal(beforeCompact.transport, 'chunks-v1');
+  const unchanged = await (
+    await call('/api/backend?compact=1', {
+      headers: {
+        'X-Tradefly-Versions': JSON.stringify(beforeCompact.versions),
+      },
+    })
+  ).json();
+  assert.deepEqual(unchanged.changes, {});
+  assert.equal(unchanged.received_at, beforeCompact.received_at);
+  const patch = {
+    transport: 'delta-v1',
+    base_received_at: beforeCompact.received_at,
+    patch: { set: { message: 'compressed update' }, remove: [], children: {} },
+  };
+  const compressed = (body) =>
+    call('/api/bridge', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + bridge,
+        'Content-Type': 'application/vnd.tradefly.telemetry+gzip',
+      },
+      body: gzipSync(JSON.stringify(body)),
+    });
+  const accepted = await compressed(patch);
+  assert.equal(accepted.status, 200);
+  assert.notEqual(
+    (await accepted.json()).received_at,
+    beforeCompact.received_at,
+  );
+  assert.equal((await compressed(patch)).status, 409);
+  const updatedCompact = await (
+    await call('/api/backend?compact=1', {
+      headers: {
+        'X-Tradefly-Versions': JSON.stringify(beforeCompact.versions),
+      },
+    })
+  ).json();
+  assert.deepEqual(updatedCompact.changes, { message: 'compressed update' });
+  assert.deepEqual((await (await call('/api/backend')).json()).snapshot, {
+    ...snapshot,
+    message: 'compressed update',
+  });
+  assert.equal((await call('/api/bridge')).status, 401);
+  const control = await (
+    await call('/api/bridge', {
+      headers: { Authorization: 'Bearer ' + bridge },
+    })
+  ).json();
+  assert.equal(typeof control.command_id, 'string');
+  assert.equal(control.snapshot, undefined);
+  assert.equal((await compressed(snapshot)).status, 200);
   assert.equal((await call('/api/swarm', { headers: auth })).status, 200);
   const flagged = {
     ...snapshot,
@@ -304,6 +360,9 @@ try {
   );
   const redacted = await (await call('/api/backend')).json();
   assert.deepEqual(redacted.snapshot.account, { equity: '100' });
+  const privateCompact = await (await call('/api/backend?compact=1')).json();
+  assert.deepEqual(privateCompact.changes.account, { equity: '100' });
+  assert.equal(privateCompact.can_control, false);
   console.log(
     'Vercel production checks passed: pages, owner login, forged-header rejection, origin checks, resume guard, telemetry, research state, delayed-chart queue/cache and logout.',
   );

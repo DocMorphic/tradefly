@@ -1,3 +1,8 @@
+import {
+  snapshotChunks,
+  chunkDelta,
+  parseVersions,
+} from '@/lib/backend-transport';
 import { publicSnapshot } from '@/lib/server/public-snapshot';
 import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, state, userAllowed } from '@/lib/server/backend-store';
@@ -7,8 +12,22 @@ export async function GET(request: Request) {
   const canControl = await userAllowed(request);
   try {
     const row = await state();
+    const snapshot = row?.snapshot
+      ? (publicSnapshot(JSON.parse(row.snapshot)) as Record<string, unknown>)
+      : null;
+    const compact = new URL(request.url).searchParams.get('compact') === '1';
+    const transfer = compact
+      ? {
+          transport: 'chunks-v1',
+          has_snapshot: snapshot !== null,
+          ...(await chunkDelta(
+            snapshot ? snapshotChunks(snapshot) : {},
+            parseVersions(request.headers.get('x-tradefly-versions')),
+          )),
+        }
+      : { snapshot };
     return json({
-      snapshot: row?.snapshot ? publicSnapshot(JSON.parse(row.snapshot)) : null,
+      ...transfer,
       can_control: canControl,
       received_at: row?.received_at,
       command: row?.command ?? 'pause',

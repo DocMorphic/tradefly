@@ -8,8 +8,9 @@ from pathlib import Path
 import httpx
 from dotenv import dotenv_values
 from .alpaca import BrokerError
-from .config import ROOT, Settings, bridge_target, bridge_headers
+from .config import ROOT, SITE_URL, Settings, bridge_target, bridge_headers
 from .domain import now_iso, instant, UTC
+from .telemetry import Telemetry, CONTENT_TYPE
 from .market import MarketEngine
 from .neural_activity import instrument, bounded_activity_snapshot
 from datetime import datetime
@@ -20,12 +21,29 @@ class Bridge:
         self.config=dotenv_values(ROOT/'.env.bridge') if (ROOT/'.env.bridge').exists() else {}
         self.client=httpx.Client(timeout=12,follow_redirects=False)
         self.seen=None
+        self.telemetry=Telemetry()
     def exchange(self):
         headers=bridge_headers(self.config)
         if not headers: return False
-        response=self.client.post(bridge_target(self.config)+'/api/bridge',json=bounded_activity_snapshot(self.engine.snapshot()),headers=headers)
-        if response.status_code!=200: return False
-        command=response.json()
+        snapshot=bounded_activity_snapshot(self.engine.snapshot())
+        if bridge_target(self.config)==SITE_URL:
+            response=self.client.post(SITE_URL+'/api/bridge',json=snapshot,headers=headers)
+            return response.status_code==200 and self.apply_command(response.json())
+        for _ in range(2):
+            current, body, raw_size=self.telemetry.encode(snapshot)
+            response=self.client.post(bridge_target(self.config)+'/api/bridge',content=body,
+                                      headers={**headers,'Content-Type':CONTENT_TYPE})
+            if response.status_code==409:
+                self.telemetry.reset();continue
+            if response.status_code!=200:return False
+            command=response.json()
+            receipt=command.get('received_at')
+            if not isinstance(receipt,str):return False
+            self.telemetry.accepted(current,receipt,len(body),raw_size)
+            return self.apply_command(command)
+        return False
+
+    def apply_command(self,command):
         # On startup acknowledge existing command, but never replay an old resume.
         if self.seen is None:
             self.seen=command['command_id'];self.engine.last_command_id=self.seen;return True
@@ -44,7 +62,13 @@ class Bridge:
                     self.engine.ledger.event('command_rejected',{'reason':str(e)})
         return True
     def before_submit(self):
-        try: healthy=self.exchange()
+        try:
+            headers=bridge_headers(self.config)
+            if not headers: healthy=False
+            elif bridge_target(self.config)==SITE_URL: healthy=self.exchange()
+            else:
+                response=self.client.get(bridge_target(self.config)+'/api/bridge',headers=headers)
+                healthy=response.status_code==200 and self.apply_command(response.json())
         except (httpx.HTTPError,ValueError,KeyError): healthy=False
         if not healthy: self.engine.pause('Desktop control connection unavailable')
         return healthy and not self.engine.paused
@@ -114,6 +138,7 @@ def main():
         if engine.scout:
             engine.scout.pulse(engine.assets, active=not engine.paused and bool(engine.market.get('is_open')))
         snapshot=bounded_activity_snapshot(engine.snapshot())
+        snapshot['telemetry_transfer']=bridge.telemetry.report()
         temporary=settings.database.parent/'status.tmp'
         temporary.write_text(json.dumps(snapshot))
         temporary.replace(settings.database.parent/'status.json')

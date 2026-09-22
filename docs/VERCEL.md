@@ -79,3 +79,12 @@ npm run test:vercel
 The production smoke test starts Next.js on localhost:3041 with an isolated temporary database and random throwaway keys. It checks auth, telemetry, command guards, research storage and the chart queue. It never calls Alpaca or loads a fly brain.
 
 For interactive local development after configuring `.env.local`, run `npm run dev:vercel`. Existing Sites commands remain `npm run dev` and `npm run build`. For schema changes, generate a new Drizzle migration and run `npm run db:migrate` before deploying the dependent Vercel code.
+
+
+## Keeping transfer usage low
+
+Fast Origin Transfer includes requests into functions as well as responses. Re-uploading a 748 KB snapshot every 15 seconds can alone transfer about 4.3 GB/day, even with no visitors. Tradefly now sends a compressed full snapshot on worker startup, then compressed changes against the last acknowledged server receipt. The server retains the complete state, rejects stale patches, and keeps command fields separate. Browser polls exchange field versions and download only changed chunks; hidden tabs stop polling. No chart history, decisions or neural traces are removed by this optimization.
+
+Deploy the server before restarting an updated worker. Reload existing desktop tabs to load the improved browser poller. The first page load and worker restart still require full state. During active trading, changing neuron traces and decision histories transfer more than an idle heartbeat. Inspect local `runs/status.json` → `telemetry_transfer` for compressed request-body bytes versus equivalent full snapshot bytes in the current worker session. These counters exclude HTTP headers and do not replace Vercel's billing measurements. Previously accrued usage is not erased.
+
+See [Vercel's transfer accounting](https://vercel.com/docs/manage-cdn-usage).
