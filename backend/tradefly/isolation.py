@@ -1,6 +1,6 @@
 """Owner-reviewed corporate-action isolation, never a broker balance correction.
 
-Only unchanged, explicitly reviewed split holdings may be isolated. Cash and
+Only unchanged, explicitly reviewed split/distribution holdings may be isolated. Cash and
 unaffected quantities/bases must reconcile against complete account activity on
 every refresh. Unknown adjustments or changed evidence fail closed.
 """
@@ -22,9 +22,10 @@ def hashed(value):
 
 
 def issue_signature(engine):
-    fields = ('id', 'symbol', 'type', 'date', 'old_rate', 'new_rate', 'pre_action_qty')
+    fields = ('id', 'symbol', 'type', 'date', 'old_rate', 'new_rate', 'pre_action_qty',
+              'new_symbol', 'old_cusip', 'new_cusip', 'source_cusip', 'source_rate', 'record_date', 'payable_date')
     issues = (engine.ledger.get('corporate_actions_v1') or {}).get('issues', [])
-    return sorted([{k: i.get(k) for k in fields} for i in issues], key=lambda i: i['id'])
+    return sorted([{k: i.get(k) for k in fields if k in i} for i in issues], key=lambda i: i['id'])
 
 
 def position_signature(position):
@@ -34,7 +35,8 @@ def position_signature(position):
 def binding(engine):
     return hashed([engine.account, engine.positions, engine.open_orders, engine.ledger.orders(),
                    engine.ledger.get('account_hash'), engine.ledger.get('baseline'),
-                   engine.ledger.get('corporate_actions_v1'), engine.ledger.get(KEY)])
+                   engine.ledger.get('corporate_actions_v1'), engine.ledger.get(KEY),
+                   engine.ledger.get('symbol_changes_v1')])
 
 
 def excluded(engine):
@@ -50,6 +52,11 @@ def audit(engine, review, activity):
         raise ValueError('Isolation account or baseline changed')
     if issue_signature(engine) != review['issues']:
         raise ValueError('Corporate-action evidence changed; review required')
+    from .symbol_changes import KEY as RENAMES, active, mapped
+    renames = active(engine)
+    if (renames != (engine.ledger.get(RENAMES) or {})
+            or hashed(renames) != review.get('renames_hash', hashed({}))):
+        raise ValueError('Ticker-change evidence changed; review required')
     state = engine.ledger.get('corporate_actions_v1') or {}
     if (state.get('status') != 'checked' or not state.get('checked_at')
             or not 0 <= (datetime.now(UTC) - instant(state['checked_at'])).total_seconds() < 1800):
@@ -59,7 +66,8 @@ def audit(engine, review, activity):
     if len(positions) != len(engine.positions):
         raise ValueError('Duplicate broker position')
     for symbol, saved in isolated.items():
-        if (symbol not in positions or position_signature(positions[symbol]) != saved['position']
+        signature = position_signature(positions[symbol]) if symbol in positions else None
+        if (signature != saved['position']
                 or fingerprint(engine, symbol) != saved['orders_hash']
                 or any(o.get('symbol') == symbol for o in engine.open_orders)):
             raise ValueError(f'{symbol} isolated position or orders changed; review required')
@@ -94,6 +102,7 @@ def audit(engine, review, activity):
         dollars = qty * price
         filled[a['order_id']][0] += qty
         filled[a['order_id']][1] += dollars
+        symbol = mapped(symbol, a['transaction_time'], renames)
         if side == 'buy':
             quantities[symbol] += qty; costs[symbol] += dollars; cash -= dollars
         else:
@@ -124,7 +133,7 @@ def audit(engine, review, activity):
         raise ValueError('Broker cash does not reconcile with complete fill history')
     usable_cash = min(cash, broker_cash)
     marked = sum((number(p['market_value']) for s, p in positions.items() if s not in isolated), number(0))
-    removed = sum((number(positions[s]['market_value']) for s in isolated), number(0))
+    removed = sum((number(positions[s]['market_value']) for s in isolated if s in positions), number(0))
     # Never borrow against the bad holding or trust broker equity to add capital.
     capital = min(usable_cash + marked, number(engine.account['equity']) - removed)
     if capital <= 0:
@@ -140,10 +149,13 @@ def refresh(engine):
     try:
         checked = audit(engine, review, engine.broker.activities('1970-01-01T00:00:00Z'))
         engine.isolation_check = {**checked, 'valid': True, 'checked_at': now_iso(), 'binding': binding(engine)}
-    except (BrokerError, ValueError, KeyError, TypeError, ArithmeticError):
+    except (BrokerError, ValueError, KeyError, TypeError, ArithmeticError) as error:
         # No arbitrary exception text from broker activity reaches public telemetry.
+        reason = 'Isolation audit failed: broker activity, holdings, cash or corporate-action evidence changed. A fresh review is required.'
+        if isinstance(error, ValueError) and str(error) == 'Corporate-action evidence changed; review required':
+            reason = 'New or revised corporate actions require a fresh isolation review. See the affected symbols on the trading floor.'
         engine.isolation_check = {'valid': False, 'checked_at': now_iso(),
-                                  'reason': 'Isolation audit failed: broker activity, holdings, cash or corporate-action evidence changed. A fresh review is required.'}
+                                  'reason': reason}
 
 
 def report(engine):
@@ -160,17 +172,31 @@ def report(engine):
     return result
 
 
-def approve(engine, symbols, reason):
+def approve(engine, symbols, reason, *, renew=False):
     """Offline, explicit owner review. Caller must hold worker.lock and back up ledger."""
     from .engine import TERMINAL
-    if not engine.paused or not reason.strip() or engine.ledger.get(KEY):
-        raise ValueError('Pause first; a new reason and no existing isolation are required')
+    previous = engine.ledger.get(KEY)
+    if not engine.paused or not reason.strip() or (previous and not renew) or (renew and not previous):
+        raise ValueError('Pause first, provide a reason, and use renew only for an existing isolation')
     engine.refresh()
     issues = issue_signature(engine)
-    if not issues or set(symbols) != {i['symbol'] for i in issues}:
+    from .symbol_changes import active
+    renames = active(engine)
+    reviewed_names = {r['event']['id'] for r in renames.values()}
+    unresolved = [i for i in issues if i['id'] not in reviewed_names]
+    required = {i['symbol'] for i in unresolved}
+    required.update(i['new_symbol'] for i in unresolved if i['type'] == 'spin_off' and i.get('new_symbol'))
+    if not issues or set(symbols) != required:
         raise ValueError('Explicitly isolate every current issue, without adding unrelated symbols')
-    if any(i['type'] not in ('reverse_split', 'forward_split') for i in issues):
-        raise ValueError('This isolation only supports share splits')
+    if any(i['type'] not in ('reverse_split', 'forward_split', 'spin_off') for i in unresolved):
+        raise ValueError('Only share splits and unprocessed spin-offs can be isolated')
+    for issue in unresolved:
+        if issue['type'] == 'spin_off' and (not issue.get('new_symbol') or not issue.get('source_rate')
+                or not issue.get('new_rate') or any(p['symbol'] == issue['new_symbol'] for p in engine.positions)
+                or any(json.loads(r['payload']).get('symbol') == issue['new_symbol'] for r in engine.ledger.orders())):
+            raise ValueError('Distributed holdings or incomplete spin-off evidence require separate reconciliation')
+    if previous and not set(previous['symbols']).issubset(symbols):
+        raise ValueError('Renewal cannot release existing exclusions')
     if engine.open_orders or any(r['status'] not in TERMINAL for r in engine.ledger.orders()):
         raise ValueError('Resolve all open orders before isolation review')
     for row in engine.ledger.orders():
@@ -180,8 +206,8 @@ def approve(engine, symbols, reason):
             raise ValueError('Recorded order differs from broker history')
     activity = engine.broker.activities('1970-01-01T00:00:00Z')
     from .corporate_actions import effective
-    for issue in issues:
-        if any(a.get('activity_type') == 'FILL' and a.get('symbol') == issue['symbol']
+    for issue in unresolved:
+        if any(a.get('activity_type') == 'FILL' and a.get('symbol') in (issue['symbol'], issue.get('new_symbol'))
                and instant(a['transaction_time']) >= effective(issue) for a in activity):
             raise ValueError('Post-action trades in the affected symbol require separate cash reconciliation')
     funding = [a for a in activity if a.get('activity_type') != 'FILL']
@@ -192,15 +218,26 @@ def approve(engine, symbols, reason):
             or instant(funding[0]['created_at']) > instant(baseline['at'])):
         raise ValueError('Initial funding and baseline require separate review')
     positions = {p['symbol']: p for p in engine.positions}
+    if previous:
+        observed = {a['id']: hashed(a) for a in activity}
+        if (previous['account_hash'] != engine.ledger.get('account_hash') or previous['baseline'] != baseline
+                or previous['funding'] != funding[0]
+                or any(observed.get(i) != h for i, h in previous['activity'].items())
+                or any(saved['position'] != (position_signature(positions[s]) if s in positions else None)
+                       or saved['orders_hash'] != fingerprint(engine, s) for s, saved in previous['symbols'].items())):
+            raise ValueError('Previously reviewed holdings, cash or activity changed; cannot renew')
     record = {'id': digest(now_iso() + reason), 'at': now_iso(), 'reason': reason,
               'account_hash': engine.ledger.get('account_hash'), 'baseline': baseline, 'issues': issues,
               'funding': funding[0], 'activity': {a['id']: hashed(a) for a in activity},
-              'symbols': {s: {'position': position_signature(positions[s]), 'orders_hash': fingerprint(engine, s)} for s in symbols}}
+              'renames_hash': hashed(renames),
+              'symbols': {s: {'position': position_signature(positions[s]) if s in positions else None,
+                              'orders_hash': fingerprint(engine, s)} for s in symbols}}
     engine.refresh()  # Recheck account after the potentially long order-history review.
     audit(engine, record, engine.broker.activities('1970-01-01T00:00:00Z'))
     with engine.ledger.db:
-        engine.ledger.db.execute('INSERT INTO settings VALUES(?,?)', (KEY, json.dumps(record)))
+        engine.ledger.db.execute('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', (KEY, json.dumps(record)))
         engine.ledger.db.execute('INSERT INTO events(at,kind,data) VALUES(?,?,?)',
-                                (record['at'], 'corporate_isolation_approved', json.dumps({'review_id': record['id'], 'symbols': symbols, 'reason': reason})))
+                                (record['at'], 'corporate_isolation_renewed' if previous else 'corporate_isolation_approved',
+                                 json.dumps({'review_id': record['id'], 'symbols': symbols, 'reason': reason, 'previous_review': previous})))
     refresh(engine)
     return report(engine)

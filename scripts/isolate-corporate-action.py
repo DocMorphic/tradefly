@@ -11,6 +11,8 @@ from tradefly.isolation import approve
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--symbol', action='append', required=True)
 parser.add_argument('--reason', required=True)
+parser.add_argument('--renew', action='store_true', help='Retain previous exclusions and audit a fresh review')
+parser.add_argument('--rename', nargs=2, metavar=('OLD', 'NEW'), help='Audit an unchanged-CUSIP ticker change first')
 args = parser.parse_args()
 settings = Settings.load()
 with (settings.database.parent/'worker.lock').open('a') as lock:
@@ -22,7 +24,10 @@ with (settings.database.parent/'worker.lock').open('a') as lock:
         source.backup(target)
     engine = MarketEngine(settings)
     try:
-        result = approve(engine, args.symbol, args.reason)
+        if args.rename:
+            from tradefly.symbol_changes import approve as approve_rename
+            approve_rename(engine, *args.rename, args.reason)
+        result = approve(engine, args.symbol, args.reason, renew=args.renew)
         print(json.dumps({'backup': str(backup), 'isolation': result, 'paused': engine.paused}, indent=2))
     finally:
         engine.broker.close(); engine.ledger.close()

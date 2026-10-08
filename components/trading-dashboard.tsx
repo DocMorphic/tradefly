@@ -615,16 +615,23 @@ export function TradingDashboard({
             </p>
           )}
           {data.valuation.issues.map((i) => (
-            <p key={i.id}>{i.reason}</p>
+            <p key={i.id}>
+              <strong>
+                {i.symbol} · {i.type.replaceAll('_', ' ')}
+              </strong>
+              {' — '}
+              {i.reason}
+            </p>
           ))}
           {!!data.valuation.issues.length && (
             <details>
               <summary>What needs fixing?</summary>
               <p>
                 Alpaca’s paper positions, cost basis, and any cash adjustment
-                must be reconciled with the corporate action. If the broker
-                still shows the old shares, ask Alpaca support to correct the
-                paper account. Tradefly cannot change broker balances.
+                must be reconciled with the corporate action, including any
+                distributed securities. Missing distributions or unchanged
+                pre-split shares need correction by Alpaca. Tradefly cannot
+                change broker balances.
               </p>
               <p>
                 A matching share count alone does not verify profit.

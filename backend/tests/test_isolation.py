@@ -202,3 +202,125 @@ def test_approval_refuses_cash_from_post_action_trades(isolated):
     with pytest.raises(ValueError, match='Post-action trades'):
         approve(e, ['NCT'], 'Cannot accept phantom realized cash')
     assert e.ledger.get(KEY) is None
+
+
+def add_events(e, b, **groups):
+    original = b.corporate_actions('start', 'end')['corporate_actions']
+    b.corporate_actions = lambda *args: {'corporate_actions': {**original, **groups}}
+    state = e.ledger.get(ACTIONS); state.pop('attempted_at', None); e.ledger.set(ACTIONS, state)
+    e.refresh()
+
+
+def renamed_position(e, b):
+    b.holdings[1]['symbol'] = 'NEW'
+    add_events(e, b, name_changes=[{'id': 'rename', 'old_symbol': 'AAPL', 'new_symbol': 'NEW',
+                                  'old_cusip': 'same-id', 'new_cusip': 'same-id', 'process_date': '2026-09-30'}])
+
+
+def test_reviewed_ticker_change_preserves_fills_and_allows_new_symbol_sales(isolated):
+    from tradefly.symbol_changes import approve as rename
+    from tradefly.reconciliation import checks
+    e, b, account, activity = isolated
+    old_orders = e.ledger.orders()
+    renamed_position(e, b)
+    assert len(checks(e)) == 2 and not report(e)['valid']
+    rename(e, 'AAPL', 'NEW', 'Reviewed same security, shares and basis')
+    assert not checks(e) and not report(e)['valid']  # Renaming does not renew isolation.
+    assert approve(e, ['NCT'], 'Reviewed unchanged exclusions and renamed holding', renew=True)['valid']
+    assert e.ledger.orders() == old_orders
+    assert [i['symbol'] for i in actions(e)['issues']] == ['NCT']
+    assert not actions(e)['performance_verified']
+    # Sell on the new ticker. The original old-ticker buy remains untouched.
+    order = {'id': 'new-sale', 'client_order_id': 'tf-sale', 'symbol': 'NEW', 'side': 'sell',
+             'status': 'filled', 'filled_qty': '1', 'filled_avg_price': '50', 'filled_at': '2026-10-01T15:00:00Z'}
+    e.ledger.prepare_order('tf-sale', 'sale', {'symbol': 'NEW'}); e.ledger.update_order('tf-sale', 'filled', order)
+    activity.append({'id': 'new-sale-fill', 'activity_type': 'FILL', 'symbol': 'NEW', 'side': 'sell',
+                     'qty': '1', 'price': '50', 'order_id': order['id'], 'transaction_time': order['filled_at']})
+    b.holdings.pop(1); account['cash'] = '9898.7885'
+    e.refresh()
+    assert report(e)['valid'] and not checks(e)
+    assert e.execution_account()['cash'] == '9898.7885'
+    assert e.ledger.orders()[:len(old_orders)] == old_orders
+
+
+@pytest.mark.parametrize('change', ['qty', 'basis', 'cash_activity', 'cusip', 'new_history', 'post_action_fill'])
+def test_ticker_review_rejects_ambiguous_evidence(isolated, change):
+    from tradefly.symbol_changes import approve as rename, KEY as RENAMES
+    e, b, _, activity = isolated
+    renamed_position(e, b)
+    if change == 'qty': b.holdings[1]['qty'] = '2'
+    if change == 'basis': b.holdings[1]['cost_basis'] = '100'
+    if change == 'cash_activity': activity.append({'id': 'nc', 'activity_type': 'NC', 'symbol': 'NEW'})
+    if change == 'cusip':
+        state = e.ledger.get(ACTIONS)
+        next(x for x in state['events'] if x['id'] == 'rename')['new_cusip'] = 'different'
+        e.ledger.set(ACTIONS, state)
+    if change == 'new_history': e.ledger.prepare_order('existing-new', 'existing-new', {'symbol': 'NEW'})
+    if change == 'post_action_fill': activity[-1]['transaction_time'] = '2026-10-01T15:00:00Z'
+    with pytest.raises(ValueError): rename(e, 'AAPL', 'NEW', 'Review')
+    assert e.ledger.get(RENAMES) is None
+
+
+def test_reviewed_ticker_evidence_change_reblocks(isolated):
+    from tradefly.symbol_changes import approve as rename
+    from tradefly.reconciliation import checks
+    e, b, _, _ = isolated
+    renamed_position(e, b); rename(e, 'AAPL', 'NEW', 'Review')
+    approve(e, ['NCT'], 'Fresh isolation review', renew=True)
+    state = e.ledger.get(ACTIONS)
+    next(x for x in state['events'] if x['id'] == 'rename')['new_symbol'] = 'OTHER'
+    e.ledger.set(ACTIONS, state); e.refresh()
+    assert not report(e)['valid'] and not actions(e)['execution_ready'] and checks(e)
+
+
+def spin_offs(e, b):
+    add_events(e, b, spin_offs=[{'id': 'distribution-'+s, 'source_symbol': 'AAPL', 'new_symbol': s,
+                                'source_rate': 1, 'new_rate': rate, 'ex_date': '2026-09-30'}
+                               for s, rate in [('CHILD', '.108'), ('RESTRICTED', '.036')]])
+
+
+def test_renewal_excludes_unprocessed_distribution_and_children(isolated):
+    e, b, _, _ = isolated
+    original = e.ledger.orders(); old_review = e.ledger.get(KEY)
+    spin_offs(e, b)
+    assert not report(e)['valid']
+    result = approve(e, ['NCT', 'AAPL', 'CHILD', 'RESTRICTED'], 'Review distribution pending at broker', renew=True)
+    assert result['valid'] and result['equity'] == '9848.7885'
+    assert e.ledger.orders() == original
+    assert not actions(e)['performance_verified']
+    for s in result['excluded_symbols']:
+        assert input_affected(e, s, '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z')
+    event = next(x for x in e.ledger.events() if x['kind'] == 'corporate_isolation_renewed')
+    assert event['data']['previous_review'] == old_review
+    b.holdings.append({'symbol': 'CHILD', 'qty': '.108', 'cost_basis': '0', 'avg_entry_price': '0', 'side': 'long'})
+    e.refresh()
+    assert not report(e)['valid']  # Delivered distribution requires a new basis audit.
+
+
+@pytest.mark.parametrize('change', ['cash', 'old_holding', 'funding', 'missing_child_exclusion', 'child_delivered', 'post_action_trade'])
+def test_renewal_never_ignores_changed_accounting(isolated, change):
+    e, b, account, activity = isolated
+    spin_offs(e, b); old_review = e.ledger.get(KEY)
+    symbols = ['NCT', 'AAPL', 'CHILD', 'RESTRICTED']
+    if change == 'cash': account['cash'] = '99999'
+    if change == 'old_holding': b.holdings[0]['cost_basis'] = '99'
+    if change == 'funding': activity[0]['net_amount'] = '99999'
+    if change == 'missing_child_exclusion': symbols.remove('CHILD')
+    if change == 'child_delivered': b.holdings.append({'symbol': 'CHILD', 'qty': '.108'})
+    if change == 'post_action_trade': activity[-1]['transaction_time'] = '2026-10-01T15:00:00Z'
+    with pytest.raises(ValueError): approve(e, symbols, 'Review', renew=True)
+    assert e.ledger.get(KEY) == old_review
+
+
+def test_later_action_on_new_ticker_includes_original_old_ticker_fills(isolated):
+    from tradefly.symbol_changes import approve as rename
+    e, b, _, _ = isolated
+    renamed_position(e, b); rename(e, 'AAPL', 'NEW', 'Review')
+    approve(e, ['NCT'], 'Fresh isolation review', renew=True)
+    original = b.corporate_actions('start', 'end')['corporate_actions']['reverse_splits']
+    add_events(e, b, reverse_splits=original + [{'id': 'new-split', 'symbol': 'NEW',
+                                               'ex_date': '2026-10-01', 'old_rate': 2, 'new_rate': 1}])
+    issue = next(i for i in actions(e)['issues'] if i['id'] == 'new-split')
+    assert issue['pre_action_qty'] == '1' and issue['expected_qty_before_rounding'] == '0.5'
+    assert not report(e)['valid']
+    assert input_affected(e, 'NEW', '2026-09-29T00:00:00Z', '2026-09-30T20:00:00Z')

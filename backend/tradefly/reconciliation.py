@@ -21,12 +21,15 @@ def fingerprint(engine, symbol):
 
 
 def holdings(engine):
+    from .symbol_changes import active, mapped
+    renames = active(engine)
     expected = {}
     for row in engine.ledger.orders():
         if not row['broker']:
             continue
         order = json.loads(row['broker'])
         symbol = order.get('symbol') or json.loads(row['payload']).get('symbol', engine.settings.symbol)
+        symbol = mapped(symbol, order.get('filled_at'), renames)
         expected[symbol] = expected.get(symbol, number(0)) + number(order.get('filled_qty') or 0) * (1 if order.get('side') == 'buy' else -1)
     actual = {p['symbol']: number(p['qty']) for p in engine.positions}
     return expected, actual

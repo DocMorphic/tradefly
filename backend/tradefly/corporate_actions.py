@@ -34,6 +34,14 @@ def normalize(response):
             event = {'id': raw['id'], 'symbol': symbol, 'type': kind, 'date': date,
                      'source': 'Alpaca corporate-actions feed'}
             effective(event)  # validate before persisting or using it
+            # Keep the identity and distribution evidence needed for review.
+            for key in ('new_symbol', 'old_cusip', 'new_cusip', 'source_cusip', 'record_date', 'payable_date'):
+                if raw.get(key): event[key] = str(raw[key])
+            if kind == 'spin_off':
+                for key in ('source_rate', 'new_rate'):
+                    rate = number(raw.get(key))
+                    if rate <= 0: raise ValueError('Invalid distribution ratio')
+                    event[key] = str(rate)
             if kind in ('reverse_split', 'forward_split'):
                 old, new = number(raw.get('old_rate')), number(raw.get('new_rate'))
                 if old <= 0 or new <= 0: raise ValueError('Invalid split ratio')
@@ -52,7 +60,7 @@ def fills(engine):
     return result
 
 
-def assess(events, orders, positions, previous, now):
+def assess(events, orders, positions, previous, now, renames=None):
     issues = {i['id']: dict(i) for i in previous}
     actual = {p['symbol']: p for p in positions}
     # Events are evidence, not synthetic fills. Rounding, cash-in-lieu and
@@ -60,14 +68,23 @@ def assess(events, orders, positions, previous, now):
     for event in events:
         at = effective(event)
         if at > now: continue
+        from .symbol_changes import mapped
+        prior_renames = {s: r for s, r in (renames or {}).items() if effective(r['event']) < at}
         qty = sum((number(f['filled_qty']) * (1 if f['side'] == 'buy' else -1)
-                   for f in orders if f.get('symbol') == event['symbol'] and instant(f['filled_at']) < at), number(0))
+                   for f in orders if mapped(f.get('symbol'), f['filled_at'], prior_renames) == event['symbol']
+                   and instant(f['filled_at']) < at), number(0))
         if qty <= 0 and event['id'] not in issues: continue
         issue = {**event, 'effective_at': at.isoformat(), 'pre_action_qty': str(qty),
                  'detected_at': issues.get(event['id'], {}).get('detected_at', now.isoformat()),
                  'status': 'requires_reconciliation', 'reason': 'Position affected by a corporate action; broker valuation and ledger require reconciliation.'}
         position = actual.get(event['symbol'], {})
         issue['broker_qty'] = position.get('qty', '0')
+        if event['type'] == 'name_change':
+            issue['reason'] = f"{event['symbol']} → {event.get('new_symbol', 'unknown ticker')}: ticker change effective {event['date']}. Original fills need an audited symbol mapping."
+        elif event['type'] == 'spin_off':
+            issue['reason'] = (f"{event['symbol']} → {event.get('new_symbol', 'distribution security')}: spin-off effective {event['date']}; "
+                               f"{event.get('new_rate', '?')} distributed shares per {event.get('source_rate', '?')} source share(s). "
+                               'Distribution, fractional treatment and cost basis remain unverified.')
         if event['type'] in ('reverse_split', 'forward_split'):
             expected = qty * number(event['new_rate']) / number(event['old_rate'])
             issue['expected_qty_before_rounding'] = str(expected)
@@ -84,7 +101,8 @@ def refresh(engine, now=None):
     state = dict(old)
     attempted = state.get('attempted_at')
     retry = 600 if state.get('status') == 'checked' else 60
-    if not attempted or (now - instant(attempted)).total_seconds() >= retry:
+    upgrade = state.get('status') == 'checked' and state.get('format_version') != 2
+    if not attempted or upgrade or (now - instant(attempted)).total_seconds() >= retry:
         state['attempted_at'] = now.isoformat()
         baseline = engine.ledger.get('baseline') or {}
         start = (instant(baseline.get('at') or now.isoformat()) - timedelta(days=90)).date().isoformat()
@@ -102,11 +120,12 @@ def refresh(engine, now=None):
             # Keep known past actions even if a later response omits them.
             events = {e['id']: e for e in state.get('events', [])}
             events.update(result)
-            state.update(status='checked', checked_at=now.isoformat(), events=list(events.values()),
+            state.update(status='checked', format_version=2, checked_at=now.isoformat(), events=list(events.values()),
                          coverage_start=start, coverage_through=end, error=None)
         except (BrokerError, ValueError, KeyError, TypeError):
             state.update(status='unavailable', error='Corporate-action verification unavailable; retrying without accepting new orders.')
-    state['issues'] = assess(state.get('events', []), fills(engine), engine.positions, state.get('issues', []), now)
+    from .symbol_changes import active
+    state['issues'] = assess(state.get('events', []), fills(engine), engine.positions, state.get('issues', []), now, active(engine))
     if state != old:
         engine.ledger.set(KEY, state)
         prior = {i['id'] for i in old.get('issues', [])}
@@ -118,7 +137,9 @@ def refresh(engine, now=None):
 
 def report(engine):
     state = engine.ledger.get(KEY) or {}
-    issues = state.get('issues', [])
+    from .symbol_changes import active
+    reconciled = {r['event']['id'] for r in active(engine).values()}
+    issues = [i for i in state.get('issues', []) if i['id'] not in reconciled]
     fresh = bool(state.get('checked_at') and datetime.now(UTC) - instant(state['checked_at']) < timedelta(minutes=30))
     complete = state.get('status') == 'checked' and fresh
     from .isolation import report as isolation_report
@@ -139,4 +160,5 @@ def input_affected(engine, symbol, start, end):
     from .isolation import excluded
     if symbol in excluded(engine): return True
     state = engine.ledger.get(KEY) or {}
-    return any(e['symbol'] == symbol and instant(start) <= effective(e) <= instant(end) for e in state.get('events', []))
+    return any(symbol in (e['symbol'], e.get('new_symbol')) and instant(start) <= effective(e) <= instant(end)
+               for e in state.get('events', []))

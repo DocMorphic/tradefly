@@ -32,6 +32,16 @@ Snapshots distinguish `execution_ready` from `performance_verified` and expose t
 
 On September 17, 2026, the feed confirms a 25-old-to-1-new share split. Tradefly recorded 299 pre-split shares, while the paper broker still reports 299 against post-split prices. The split ratio implies 11.96 shares before fractional-share treatment. This is flagged as unverified, rather than treated as a $2,000+ strategy gain.
 
+## Ticker changes and renewed isolation reviews
+
+An unchanged-CUSIP ticker change can be reviewed with `--rename OLD NEW` on the isolation command. The review requires matching broker orders, complete fill activity, a buy-only history before the change, no destination history, and identical quantity and cost basis under the new ticker. Original orders and fills are preserved. A separate, account-bound mapping carries their quantity and basis into the new symbol, including for subsequent sales and corporate-action checks. Changed source history or changed name-change evidence invalidates the mapping. This is not a general merger or CUSIP conversion tool.
+
+Use `--renew` only for an explicit fresh isolation review. It retains every existing exclusion and archives the previous review. Existing isolated positions, activity, funding and baseline must remain unchanged. New issues are bound into the replacement review only after all original cash, orders, quantities and bases reconcile again.
+
+Unprocessed spin-offs can be isolated conservatively: exclude both the source holding and **every** distribution security, even those absent from the broker account. No delivered distribution position, child trading history, post-action source trades or cash adjustments are accepted by this narrow workflow. If a distribution later arrives or the basis changes, execution blocks pending another audit. Profit remains unverified throughout. Distinct distributions on the same date retain separate identifiers, ratios and destination securities.
+
+For the September 30 actions, AIXC became FFR with the same CUSIP; EU distributed unrestricted and two restricted tranches of Verdera shares. The latter must not be collapsed into one duplicate warning. Issuer sources: [FFR ticker announcement](https://aixcrypto.gcs-web.com/news-releases/news-release-details/aixcrypto-holdings-inc-announces-name-change-ff-eai-robotics), [enCore distribution announcement](https://encoreuranium.com/news/encore-energy-completes-distribution-of-verdera-common-shares-to-its-shareholders/).
+
 ## Reconciliation and scope
 
 There is deliberately no automatic dismiss button. Clearing an issue requires separately verified broker positions, cash/cash-in-lieu, cost basis and account activity, plus an explicit audited ledger reconciliation. This change detects and contains the issue; it does not repair Alpaca's paper accounting. Even after a broker quantity changes, historical invalid valuation intervals must remain flagged until that audit is complete.
