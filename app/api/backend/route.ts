@@ -7,6 +7,7 @@ import { publicSnapshot } from '@/lib/server/public-snapshot';
 import { sameOrigin } from '@/lib/server/request-origin';
 import { database, json, state, userAllowed } from '@/lib/server/backend-store';
 import { resumeBlocker } from '@/lib/resume-readiness';
+import { isFresh } from '@/lib/freshness';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const canControl = await userAllowed(request);
@@ -85,17 +86,12 @@ export async function POST(request: Request) {
   if (command === 'decoder') {
     if (!['original', 'learned', 'shadow'].includes(String(mode)))
       return json({ error: 'Unknown decoder' }, 400);
-    if (
-      !snapshot?.paused ||
-      !row?.received_at ||
-      Date.now() - Date.parse(row.received_at) > 45000
-    )
+    if (!snapshot?.paused || !isFresh(row?.received_at, Date.now()))
       return json({ error: 'Connect and pause the worker first' }, 409);
     if (
       mode === 'learned' &&
       (!snapshot?.learning?.eligible ||
-        !snapshot.learning.updated_at ||
-        Date.now() - Date.parse(snapshot.learning.updated_at) > 300000)
+        !isFresh(snapshot.learning.updated_at, Date.now(), 300000))
     )
       return json(
         { error: 'The learner must pass a fresh held-out evaluation first' },
@@ -108,11 +104,7 @@ export async function POST(request: Request) {
         { error: 'Full-market mode has no handpicked watchlist' },
         409,
       );
-    if (
-      !snapshot?.paused ||
-      !row?.received_at ||
-      Date.now() - Date.parse(row.received_at) > 45000
-    )
+    if (!snapshot?.paused || !isFresh(row?.received_at, Date.now()))
       return json(
         { error: 'Connect and pause the worker before changing stocks' },
         409,

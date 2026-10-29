@@ -588,64 +588,88 @@ export function TradingDashboard({
         <span className="trade-update">As of {fmtTime(data.updatedAt)} ET</span>
       </div>
       {data.valuation?.performance_verified === false && (
-        <div className="paper-alert" role="status">
+        <section className="paper-notice" aria-label="Performance verification">
           <strong>Performance unverified</strong>
-          <p>{data.valuation.message}</p>
-          {data.valuation.isolation && (
-            <p>
-              <strong>
-                {data.valuation.isolation.excluded_symbols.join(', ')} ·
-                isolated
-              </strong>
-              {data.valuation.isolation.valid ? (
-                <>
-                  {' '}
-                  — Verified cash {money(Number(data.valuation.isolation.cash))}
-                  . Capital used for inputs and order limits{' '}
-                  {money(Number(data.valuation.isolation.equity))}.{' '}
-                  {money(
-                    Number(data.valuation.isolation.excluded_market_value),
-                  )}{' '}
-                  of reported holdings value excluded. This is a risk budget,
-                  not corrected profit.
-                </>
-              ) : (
-                <> — {data.valuation.isolation.reason}</>
-              )}
-            </p>
-          )}
-          {data.valuation.issues.map((i) => (
-            <p key={i.id}>
-              <strong>
-                {i.symbol} · {i.type.replaceAll('_', ' ')}
-              </strong>
-              {' — '}
-              {i.reason}
-            </p>
-          ))}
-          {!!data.valuation.issues.length && (
-            <details>
-              <summary>What needs fixing?</summary>
+          <p>
+            Profit metrics are withheld pending corporate-action reconciliation.
+            {data.valuation.issues.length > 0 && (
+              <>
+                {' '}
+                Affected holdings:{' '}
+                {[...new Set(data.valuation.issues.map((i) => i.symbol))].join(
+                  ', ',
+                )}
+                .
+              </>
+            )}
+          </p>
+          <details className="paper-notice-details">
+            <summary>
+              Review details &amp; recovery steps
+              {data.valuation.issues.length > 0
+                ? ` · ${data.valuation.issues.length} corporate actions`
+                : ''}
+            </summary>
+            <p>{data.valuation.message}</p>
+            {data.valuation.isolation && (
               <p>
-                Alpaca’s paper positions, cost basis, and any cash adjustment
-                must be reconciled with the corporate action, including any
-                distributed securities. Missing distributions or unchanged
-                pre-split shares need correction by Alpaca. Tradefly cannot
-                change broker balances.
+                <strong>
+                  {data.valuation.isolation.excluded_symbols.join(', ')} ·{' '}
+                  {data.valuation.isolation.valid
+                    ? 'reviewed exclusions at last update'
+                    : 'previous exclusions · review required'}
+                </strong>
+                {data.valuation.isolation.valid ? (
+                  <>
+                    {' '}
+                    — Verified cash{' '}
+                    {money(Number(data.valuation.isolation.cash))}. Capital used
+                    for inputs and order limits{' '}
+                    {money(Number(data.valuation.isolation.equity))}.{' '}
+                    {money(
+                      Number(data.valuation.isolation.excluded_market_value),
+                    )}{' '}
+                    of reported holdings value excluded. This is a risk budget,
+                    not corrected profit.
+                  </>
+                ) : (
+                  <> — {data.valuation.isolation.reason}</>
+                )}
               </p>
-              <p>
-                A matching share count alone does not verify profit.
-                {data.valuation.isolation?.valid
-                  ? ' The reviewed exclusion allows other stocks to run while this remains unresolved. Any changed holding, unexplained cash activity, or failed audit blocks execution again.'
-                  : ' Resume requires reconciliation or a current, explicitly reviewed isolation of the affected holding.'}
+            )}
+            {data.valuation.issues.map((i) => (
+              <p key={i.id}>
+                <strong>
+                  {i.symbol} · {i.type.replaceAll('_', ' ')}
+                </strong>
+                {' — '}
+                {i.reason}
               </p>
-            </details>
-          )}
-          <small>
-            Raw broker balances are retained for audit. No corrected profit is
-            invented.
-          </small>
-        </div>
+            ))}
+            {!!data.valuation.issues.length && (
+              <div className="paper-recovery">
+                <strong>What needs fixing?</strong>
+                <p>
+                  Alpaca’s paper positions, cost basis, and any cash adjustment
+                  must be reconciled with the corporate action, including any
+                  distributed securities. Missing distributions or unchanged
+                  pre-split shares need correction by Alpaca. Tradefly cannot
+                  change broker balances.
+                </p>
+                <p>
+                  A matching share count alone does not verify profit.
+                  {data.valuation.isolation?.valid
+                    ? ' The reviewed exclusion allows other stocks to run while this remains unresolved. Any changed holding, unexplained cash activity, or failed audit blocks execution again.'
+                    : ' Resume requires reconciliation or a current, explicitly reviewed isolation of the affected holding.'}
+                </p>
+              </div>
+            )}
+            <small>
+              Raw broker balances are retained for audit. No corrected profit is
+              invented.
+            </small>
+          </details>
+        </section>
       )}
       <div className="trade-metrics">
         <div>

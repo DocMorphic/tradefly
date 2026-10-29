@@ -1,4 +1,5 @@
 import type { BackendResponse } from './backend';
+import { isFresh } from './freshness.ts';
 
 /** Shared explanation for the desktop and command endpoint. Worker rechecks on receipt. */
 export function resumeBlocker(
@@ -6,13 +7,7 @@ export function resumeBlocker(
   now = Date.now(),
 ): string | null {
   const s = data.snapshot;
-  const received = Date.parse(data.received_at || '');
-  if (
-    !s ||
-    !Number.isFinite(received) ||
-    now - received > 45000 ||
-    received > now + 5000
-  )
+  if (!s || !isFresh(data.received_at, now))
     return 'The Mac worker is offline or its readings are stale. Start the worker and wait for a fresh update.';
   if (!s.broker?.connected)
     return 'The worker cannot reach the Alpaca paper account. Check its connection before resuming.';

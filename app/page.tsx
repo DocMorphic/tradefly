@@ -135,13 +135,23 @@ export default function Desktop() {
     ).modelContext;
     if (!ctx?.registerTool) return;
     const lifecycle = new AbortController();
+    const reportRegistrationError = (error: unknown) => {
+      // Strict Mode and unmount cancel registration as part of normal cleanup.
+      if (
+        lifecycle.signal.aborted &&
+        error instanceof Error &&
+        error.name === 'AbortError'
+      )
+        return;
+      console.error(error);
+    };
     const register = (tool: Parameters<typeof ctx.registerTool>[0]) => {
       try {
         Promise.resolve(
           ctx.registerTool(tool, { signal: lifecycle.signal }),
-        ).catch(console.error);
+        ).catch(reportRegistrationError);
       } catch (error) {
-        console.error(error);
+        reportRegistrationError(error);
       }
     };
     register({
@@ -437,7 +447,11 @@ export default function Desktop() {
           </div>
         ) : (
           <div className="paper-task-status">
-            {backend.data.snapshot?.message ?? 'Waiting for local backend'}
+            {backend.data.snapshot
+              ? backend.stale
+                ? 'Worker offline · showing saved readings'
+                : backend.data.snapshot.message
+              : 'Waiting for local backend'}
           </div>
         )}
       </footer>

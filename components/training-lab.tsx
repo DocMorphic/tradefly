@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Graph } from './trading-dashboard';
 import type { PaperBackend } from './paper-views';
+import { isFresh } from '@/lib/freshness';
 const labels: Record<string, string> = {
   learner: 'Learning fly',
   original: 'Original fly',
@@ -16,10 +17,7 @@ export function TrainingLab({ backend }: { backend: PaperBackend }) {
   const r = backend.data.snapshot?.learning;
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
-  const stale =
-    backend.stale ||
-    !r?.updated_at ||
-    Date.now() - Date.parse(r.updated_at) > 300000;
+  const stale = backend.stale || !isFresh(r?.updated_at, backend.now, 300000);
   async function select(mode: string) {
     setBusy(true);
     setMessage('');

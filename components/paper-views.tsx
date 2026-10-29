@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { TradingDashboard, SignalBars } from './trading-dashboard';
 import { paperTradingData } from '@/lib/trading-charts';
 import { resumeBlocker } from '@/lib/resume-readiness';
+import { isFresh } from '@/lib/freshness';
 import { Download, Pause, Play, RefreshCw } from 'lucide-react';
 import { HoldingsTable } from './holdings-table';
 import { useChartCursor } from './chart-cursor';
@@ -67,6 +68,8 @@ export function useBackend() {
   const [now, setNow] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
+    // Age saved readings even when a request stalls or the tab is hidden.
+    const clock = setInterval(() => setNow(Date.now()), 5000);
     let timer: ReturnType<typeof setTimeout>;
     let versions: Versions = {};
     let chunks: Chunks = {};
@@ -79,7 +82,10 @@ export function useBackend() {
         const r = await fetch('/api/backend?compact=1', {
           headers: { 'X-Tradefly-Versions': JSON.stringify(versions) },
           cache: 'no-store',
-          signal: controller.signal,
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(15000),
+          ]),
         });
         if (!r.ok)
           throw new Error(
@@ -134,6 +140,7 @@ export function useBackend() {
       document.removeEventListener('visibilitychange', onVisibility);
       controller.abort();
       clearTimeout(timer);
+      clearInterval(clock);
     };
   }, []);
   async function command(
@@ -166,8 +173,8 @@ export function useBackend() {
       setBusy(false);
     }
   }
-  const stale = !data.received_at || now - Date.parse(data.received_at) > 45000;
-  return { data, error: commandError || error, busy, stale, command };
+  const stale = !data.snapshot || !isFresh(data.received_at, now);
+  return { data, error: commandError || error, busy, stale, now, command };
 }
 export type PaperBackend = ReturnType<typeof useBackend>;
 function Stat({
@@ -572,7 +579,7 @@ export function PaperView({
 }) {
   const { data, error, stale, busy, command } = backend,
     s = data.snapshot;
-  const resumeReason = resumeBlocker(data);
+  const resumeReason = resumeBlocker(data, backend.now);
   const charts = useMemo(() => (s ? paperTradingData(s) : null), [s]);
   const [selected, setSelected] = useState<string | null>(null);
   const decision =
@@ -586,7 +593,7 @@ export function PaperView({
             {!s
               ? 'Awaiting backend'
               : stale
-                ? 'Backend offline'
+                ? 'Saved snapshot · worker offline'
                 : s.paused
                   ? 'Paper · paused'
                   : 'Paper · running'}
@@ -676,11 +683,6 @@ export function PaperView({
         </Empty>
       ) : (
         <>
-          {stale && (
-            <p className="paper-alert">
-              These are saved readings. The backend has not checked in recently.
-            </p>
-          )}
           {id === 'overview' && charts && (
             <>
               {!!s.position_checks?.length && (

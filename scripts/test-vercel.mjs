@@ -296,6 +296,31 @@ try {
       .status,
     400,
   );
+  // A malformed or future receipt must not unlock controls in either UI or API.
+  const fixtureDb = createClient({ url });
+  try {
+    for (const received of [
+      'invalid',
+      new Date(Date.now() + 60000).toISOString(),
+      new Date(Date.now() - 60000).toISOString(),
+    ]) {
+      await fixtureDb.execute({
+        sql: 'UPDATE backend_state SET received_at=? WHERE id=1',
+        args: [received],
+      });
+      for (const command of [
+        { command: 'decoder', mode: 'shadow' },
+        { command: 'watchlist', symbols: ['AAPL'] },
+      ])
+        assert.equal((await post('/api/backend', command, auth)).status, 409);
+    }
+    await fixtureDb.execute({
+      sql: 'UPDATE backend_state SET received_at=? WHERE id=1',
+      args: [new Date().toISOString()],
+    });
+  } finally {
+    fixtureDb.close();
+  }
   assert.equal(
     (await post('/api/market-history', { symbol: 'FEMY' }, auth)).status,
     200,
