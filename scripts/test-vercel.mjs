@@ -8,6 +8,8 @@ import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
+import { cryptoWalkthrough } from '../lib/crypto/demo.ts';
+import { buildBundle, receiptHash, ZERO_HASH } from '../lib/crypto/receipts.ts';
 
 const folder = await mkdtemp(path.join(tmpdir(), 'tradefly-vercel-'));
 const url = 'file:' + path.join(folder, 'test.db');
@@ -209,6 +211,120 @@ try {
   assert.equal(control.snapshot, undefined);
   assert.equal((await compressed(snapshot)).status, 200);
   assert.equal((await call('/api/swarm', { headers: auth })).status, 200);
+  assert.equal((await (await call('/api/crypto')).json()).snapshot, null);
+  assert.equal((await post('/api/crypto/bridge', {})).status, 401);
+  assert.equal(
+    (await call('/api/crypto/market?symbol=BTC/../../account')).status,
+    400,
+  );
+  const cryptoAuth = { Authorization: 'Bearer ' + bridge };
+  assert.equal((await post('/api/crypto/bridge', {}, cryptoAuth)).status, 400);
+  const fixture = await cryptoWalkthrough();
+  const neuralReceipts = [];
+  for (const { record } of fixture.receipts) {
+    const row = {
+      ...record,
+      source: 'neural',
+      observation: { ...record.observation, provider: 'coinbase-exchange' },
+      previous_hash: neuralReceipts.at(-1)?.hash ?? ZERO_HASH,
+    };
+    neuralReceipts.push({ record: row, hash: await receiptHash(row) });
+  }
+  const cryptoSnapshot = {
+    schema: 'tradefly.crypto.snapshot.v1',
+    run_id: fixture.manifest.run_id,
+    source: 'neural',
+    updated_at: new Date().toISOString(),
+    equity: '10000',
+    decision_count: 3,
+    bundle: await buildBundle(neuralReceipts),
+    account: {
+      initial_cash: '10000',
+      cash: '10000',
+      realized: '0',
+      fees: '0',
+      pending: null,
+      fills: [],
+      holdings: {
+        'BTC/USD': { quantity: '0', cost_basis: '0', mark: '60000' },
+        'ETH/USD': { quantity: '0', cost_basis: '0', mark: '2000' },
+      },
+      api_key: 'must-not-be-published',
+    },
+  };
+  assert.equal(
+    (
+      await post(
+        '/api/crypto/bridge',
+        { ...cryptoSnapshot, source: 'synthetic-demo' },
+        cryptoAuth,
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await post('/api/crypto/bridge', cryptoSnapshot, cryptoAuth)).status,
+    200,
+  );
+  const cryptoPublic = (await (await call('/api/crypto')).json()).snapshot;
+  assert.equal(cryptoPublic.decision_count, 3);
+  assert.equal(cryptoPublic.account.api_key, undefined);
+  const tampered = structuredClone(cryptoSnapshot);
+  tampered.bundle.receipts[0].record.action = 'SELL';
+  assert.equal(
+    (await post('/api/crypto/bridge', tampered, cryptoAuth)).status,
+    400,
+  );
+  assert.equal(
+    (
+      await post(
+        '/api/crypto/bridge',
+        { ...cryptoSnapshot, decision_count: 0, bundle: null },
+        cryptoAuth,
+      )
+    ).status,
+    409,
+  );
+  // A fully rehashed alternative history cannot overwrite the accepted run.
+  const alternative = structuredClone(cryptoSnapshot);
+  alternative.bundle.receipts[0].record.neural.buy_hz = '33';
+  let previous = ZERO_HASH;
+  for (const receipt of alternative.bundle.receipts) {
+    receipt.record.previous_hash = previous;
+    receipt.hash = await receiptHash(receipt.record);
+    previous = receipt.hash;
+  }
+  alternative.bundle = await buildBundle(alternative.bundle.receipts);
+  assert.equal(
+    (await post('/api/crypto/bridge', alternative, cryptoAuth)).status,
+    409,
+  );
+  assert.equal(
+    (await (await call('/api/backend')).json()).snapshot.mode,
+    'alpaca-paper',
+  );
+  const proof = { manifest: fixture.manifest, digest: fixture.digest };
+  const checked = await (await post('/api/crypto/verify', proof)).json();
+  assert.equal(checked.integrity, 'matched');
+  assert.equal(checked.status, 'unconfigured');
+  assert.equal(
+    (await post('/api/crypto/verify', { ...proof, digest: '0'.repeat(64) }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await call('/api/crypto/verify', {
+        method: 'POST',
+        headers: {
+          Origin: 'https://other.example',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(proof),
+      })
+    ).status,
+    403,
+  );
   const flagged = {
     ...snapshot,
     brain: { ready: true },
@@ -389,7 +505,7 @@ try {
   assert.deepEqual(privateCompact.changes.account, { equity: '100' });
   assert.equal(privateCompact.can_control, false);
   console.log(
-    'Vercel production checks passed: pages, owner login, forged-header rejection, origin checks, resume guard, telemetry, research state, delayed-chart queue/cache and logout.',
+    'Vercel production checks passed: pages, owner login, forged-header rejection, origin checks, resume guard, telemetry, crypto receipt verification/history guards/redaction, research state, delayed-chart queue/cache and logout.',
   );
 } finally {
   child.kill('SIGTERM');

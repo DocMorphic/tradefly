@@ -13,6 +13,7 @@ import { DesktopIcons } from '@/components/desktop-icons';
 import { FlyHabitat } from '@/components/fly-habitat';
 import { BrainActivity } from '@/components/brain-activity';
 import { SwarmResearch } from '@/components/swarm-research';
+import { CryptoLab } from '@/components/crypto-lab';
 import { FlyLog } from '@/components/fly-log';
 import { PaperView, useBackend } from '@/components/paper-views';
 import { ExperimentView } from '@/components/experiment-views';
@@ -22,6 +23,7 @@ import { OwnerAccess } from '@/components/owner-access';
 import {
   Activity,
   Bug,
+  Coins,
   BarChart3,
   BookOpen,
   FlaskConical,
@@ -57,6 +59,7 @@ type AppId =
   | 'notes'
   | 'log'
   | 'swarm'
+  | 'crypto'
   | 'habitat'
   | 'activity'
   | 'evidence';
@@ -65,6 +68,7 @@ const APPS = {
   evidence: { title: 'Evidence desk', icon: Network },
   habitat: { title: 'Fly habitat', icon: Bug },
   swarm: { title: 'Swarm research', icon: FlaskConical },
+  crypto: { title: 'Crypto Lab', icon: Coins },
   log: { title: 'Fly log', icon: Activity },
   overview: { title: 'Observation desk', icon: Grid2X2 },
   brain: { title: 'Decision inspector', icon: Network },
@@ -274,6 +278,8 @@ export default function Desktop() {
     open('evidence');
   }
   function windowStatus(id: AppId) {
+    if (id === 'crypto')
+      return 'Crypto Lab · simulated funds / decision receipts';
     if (id === 'swarm')
       return 'Swarm research · live explorer / prototype signals';
     if (
@@ -296,6 +302,7 @@ export default function Desktop() {
     return `Alpaca paper connected · ${brain} · ${state}`;
   }
   function content(id: AppId): ReactNode {
+    if (id === 'crypto') return <CryptoLab />;
     if (id === 'learning') return <TrainingLab backend={backend} />;
     if (id === 'activity')
       return <BrainActivity backend={backend} onTrace={showEvidence} />;

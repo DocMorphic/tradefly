@@ -41,6 +41,7 @@ flowchart LR
 | :--- | :--- |
 | [Brain implementation](BRAIN.md) | Dataset counts, neuron IDs, stimulus mapping and reference-model adaptations. |
 | [Training Lab](LEARNING-LAB.md) | Associative memory, causal labels, frozen evaluation and promotion gates. |
+| [Crypto Lab](CRYPTO-LAB.md) | Independent BTC/ETH paper accounting, a local Ethereum walkthrough and decision-receipt verification. |
 | [Validation record](VALIDATION.md) | Dated engineering checks and the limits of the evidence. |
 | [Brain visualization research](BRAIN_VISUALIZATION_RESEARCH.md) | Geometry, spike display and visualization provenance. |
 | [Research sources](SOURCES.md) | Primary scientific work and broker documentation. |

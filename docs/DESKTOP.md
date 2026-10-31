@@ -19,6 +19,7 @@ Tradefly is a browser desktop. Its windows are different views of the same exper
 | Fly habitat | Can I watch a small fly sit at a trading terminal? Yes. |
 | Data & definitions | What do the sources, settings and metrics mean? |
 | Swarm research | What do the separate token, wallet and cohort research tools show? |
+| Crypto Lab | What do BTC/ETH paper experiments show, and do their decision fingerprints match an Ethereum receipt? |
 
 ## Read a decision from left to right
 

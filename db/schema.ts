@@ -26,3 +26,9 @@ export const swarmResearch = sqliteTable('swarm_research', {
   state: text('state').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+export const cryptoRuns = sqliteTable('crypto_runs', {
+  runId: text('run_id').primaryKey(),
+  snapshot: text('snapshot').notNull(),
+  decisionCount: integer('decision_count').notNull(),
+  receivedAt: text('received_at').notNull(),
+});

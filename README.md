@@ -27,6 +27,7 @@ It is part neuroscience experiment, part trading lab, and part tiny fly sitting 
 | **Evidence desk** | The chain from market observation → neural response → intent → execution → fill. |
 | **Fly log & trade ledger** | Factual activity, sortable holdings, broker outcomes, and exports. |
 | **Fly habitat** | A 3D fly at a trading screen displaying account telemetry. The typing is decorative. |
+| **Crypto Lab** | BTC/ETH market candles, a separate paper experiment, and decision receipts checked locally and against an Ethereum test-network commitment. |
 
 Drag windows, snap them to halves or quarters, arrange the desktop, and hover over charts to inspect the underlying readings. Public visitors can watch; only the owner can change controls.
 
@@ -147,6 +148,25 @@ Default execution is long-only and cash-sized: **$100 maximum intended order**, 
 
 Corporate-action evidence persists across restarts and feed failures. The app does not manufacture corrected balances or quietly erase suspicious gains. [How the checks work →](docs/CORPORATE-ACTIONS.md)
 
+## Crypto and blockchain experiments
+
+The [Crypto Lab](docs/CRYPTO-LAB.md) has its own $10,000 simulated balance, ledger,
+and full-brain checkpoint. It uses completed Coinbase Exchange BTC/USD and
+ETH/USD candles, with explicit modeled fees, slippage and later-open fills.
+The stock worker and its Alpaca account are independent. Crypto evaluation is
+opt-in; browsing the lab does not launch a brain.
+
+Decision receipts bind the market inputs, model/protocol identity, rates and
+action into a hash chain and Merkle batch. An append-only Solidity contract can
+publish the batch fingerprint on an Ethereum test network. Visitors can export,
+recompute, and compare these records. A matching commitment establishes record
+integrity; it does not authenticate a brain simulation or establish profitability.
+
+For a complete local blockchain walkthrough with synthetic records and test
+Ether, run `npm run build:vercel` then `npm run crypto:demo`. This deploys a real
+contract on a temporary loopback Ethereum node and opens a separate website
+database, without starting either brain worker. [Setup and verification →](docs/CRYPTO-LAB.md)
+
 ## Documentation map
 
 | I want to… | Go here |
@@ -155,6 +175,7 @@ Corporate-action evidence persists across restarts and feed failures. The app do
 | Understand what I am watching | [Desktop guide](docs/DESKTOP.md) |
 | Inspect the neuroscience | [Brain implementation](docs/BRAIN.md) · [Sources](docs/SOURCES.md) |
 | Understand the learning layer | [Training Lab](docs/LEARNING-LAB.md) |
+| Explore crypto and verify decision receipts | [Crypto Lab](docs/CRYPTO-LAB.md) |
 | Operate or recover the worker | [Backend](docs/BACKEND.md) · [Position recovery](docs/POSITION-RECOVERY.md) |
 | Check what has actually been tested | [Validation record](docs/VALIDATION.md) |
 | See what is built and what comes next | [Roadmap](docs/ROADMAP.md) |

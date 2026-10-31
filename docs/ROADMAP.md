@@ -15,6 +15,7 @@ This is a capability map, not a promise that the experiment will become profitab
 - [x] Fly-inspired associative memory, training-only mode, causal reward timing and frozen held-out evaluation.
 - [x] Corporate-action warnings, unverified-performance handling and execution/learning gates.
 - [x] Full recorded account timespan in bounded chart telemetry.
+- [x] Separate BTC/ETH Crypto Lab, opt-in full-brain paper runner, and decision-receipt verification with a tested local Ethereum contract and public test-network publication CLI (31 October 2026).
 
 ## The next research questions
 

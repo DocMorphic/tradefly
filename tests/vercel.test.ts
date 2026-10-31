@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from '@libsql/client';
+import { readFile } from 'node:fs/promises';
 import { SignJWT, jwtVerify } from 'jose';
 import { migrate } from '../scripts/migrate-vercel.mjs';
 import { libsqlStorage } from '../lib/server/libsql-storage.ts';
@@ -57,9 +58,11 @@ void test('remembered sessions last 90 days; short sessions still expire after e
     const tomorrow = { currentDate: new Date((payload.iat! + 86400) * 1000) };
     if (remember) await jwtVerify(token, secret, tomorrow);
     else await assert.rejects(jwtVerify(token, secret, tomorrow));
-    await assert.rejects(jwtVerify(token, secret, {
-      currentDate: new Date(payload.exp! * 1000),
-    }));
+    await assert.rejects(
+      jwtVerify(token, secret, {
+        currentDate: new Date(payload.exp! * 1000),
+      }),
+    );
   }
   // Exercise the request verifier with a session from a previous browser visit.
   const now = Math.floor(Date.now() / 1000);
@@ -88,7 +91,12 @@ void test('Vercel SQLite migrations are repeatable and conditional updates prese
     const db = libsqlStorage(client);
     assert.equal(
       (await client.execute('SELECT * FROM tradefly_migrations')).rows.length,
-      4,
+      JSON.parse(
+        await readFile(
+          new URL('../drizzle/meta/_journal.json', import.meta.url),
+          'utf8',
+        ),
+      ).entries.length,
     );
     await db
       .prepare(
